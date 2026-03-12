@@ -1,5 +1,6 @@
 package com.banking.api.service.impl;
 
+import com.banking.api.config.RedisConfig;
 import com.banking.api.exception.BadRequestException;
 import com.banking.api.exception.InsufficientBalanceException;
 import com.banking.api.exception.ResourceNotFoundException;
@@ -16,6 +17,9 @@ import com.banking.api.repository.TransactionRepository;
 import com.banking.api.service.TransactionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,6 +40,13 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            // Evict cached account data since balances changed
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNTS, allEntries = true),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BY_NUMBER, allEntries = true),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNTS_BY_USER, allEntries = true),
+            @CacheEvict(value = RedisConfig.CACHE_TRANSACTIONS, allEntries = true)
+    })
     public TransactionResponse transfer(TransferRequest request, String userId) {
         if (request.getSourceAccountNumber().equals(request.getDestinationAccountNumber())) {
             throw new BadRequestException("Source and destination accounts cannot be the same");
@@ -84,7 +95,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .build();
 
         Transaction savedTransaction = transactionRepository.save(transaction);
-        log.info("Transfer completed: {} → {}, amount: {}, ref: {}",
+        log.info("Transfer completed: {} → {}, amount: {}, ref: {} [all caches evicted]",
                 sourceAccount.getAccountNumber(), destAccount.getAccountNumber(),
                 request.getAmount(), savedTransaction.getReferenceNumber());
 
@@ -93,6 +104,12 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNTS, allEntries = true),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BY_NUMBER, allEntries = true),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNTS_BY_USER, allEntries = true),
+            @CacheEvict(value = RedisConfig.CACHE_TRANSACTIONS, allEntries = true)
+    })
     public TransactionResponse deposit(DepositRequest request) {
         Account account = accountRepository.findByAccountNumber(request.getAccountNumber())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", request.getAccountNumber()));
@@ -115,7 +132,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .build();
 
         Transaction savedTransaction = transactionRepository.save(transaction);
-        log.info("Deposit completed: account: {}, amount: {}, ref: {}",
+        log.info("Deposit completed: account: {}, amount: {}, ref: {} [all caches evicted]",
                 account.getAccountNumber(), request.getAmount(), savedTransaction.getReferenceNumber());
 
         return mapToResponse(savedTransaction);
@@ -123,7 +140,9 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = RedisConfig.CACHE_TRANSACTIONS, key = "#referenceNumber")
     public TransactionResponse getByReferenceNumber(String referenceNumber) {
+        log.debug("Cache MISS — loading transaction by ref: {}", referenceNumber);
         Transaction transaction = transactionRepository.findByReferenceNumber(referenceNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction", "referenceNumber", referenceNumber));
         return mapToResponse(transaction);
@@ -132,6 +151,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional(readOnly = true)
     public Page<TransactionResponse> getTransactionsByAccountId(String accountId, Pageable pageable) {
+        // Pageable results not cached (dynamic pagination)
         return transactionRepository.findByAccountId(accountId, pageable)
                 .map(this::mapToResponse);
     }
