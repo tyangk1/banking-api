@@ -11,6 +11,8 @@ import com.banking.api.model.enums.AccountStatus;
 import com.banking.api.repository.AccountRepository;
 import com.banking.api.repository.UserRepository;
 import com.banking.api.service.AccountService;
+import com.banking.api.messaging.EventPublisher;
+import com.banking.api.model.event.AccountEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -32,6 +34,7 @@ public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
+    private final EventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -58,6 +61,20 @@ public class AccountServiceImpl implements AccountService {
         Account savedAccount = accountRepository.save(account);
         log.info("Account created: {} for user: {} [cache evicted: accountsByUser:{}]",
                 accountNumber, user.getEmail(), userId);
+
+        // Publish event to RabbitMQ
+        eventPublisher.publishAccountCreated(AccountEvent.builder()
+                .eventType(AccountEvent.EventType.CREATED)
+                .accountId(savedAccount.getId())
+                .accountNumber(accountNumber)
+                .accountName(savedAccount.getAccountName())
+                .accountType(savedAccount.getAccountType().name())
+                .balance(savedAccount.getBalance())
+                .currency(savedAccount.getCurrency())
+                .ownerEmail(user.getEmail())
+                .ownerName(user.getFullName())
+                .timestamp(java.time.LocalDateTime.now())
+                .build());
 
         return mapToResponse(savedAccount);
     }
@@ -123,6 +140,20 @@ public class AccountServiceImpl implements AccountService {
         Account closedAccount = accountRepository.save(account);
         log.info("Account closed: {} [cache evicted: accounts:{}, accountsByUser:{}]",
                 account.getAccountNumber(), accountId, userId);
+
+        // Publish event to RabbitMQ
+        eventPublisher.publishAccountClosed(AccountEvent.builder()
+                .eventType(AccountEvent.EventType.CLOSED)
+                .accountId(accountId)
+                .accountNumber(account.getAccountNumber())
+                .accountName(account.getAccountName())
+                .accountType(account.getAccountType().name())
+                .balance(account.getBalance())
+                .currency(account.getCurrency())
+                .ownerEmail(account.getUser().getEmail())
+                .ownerName(account.getUser().getFullName())
+                .timestamp(java.time.LocalDateTime.now())
+                .build());
 
         return mapToResponse(closedAccount);
     }
