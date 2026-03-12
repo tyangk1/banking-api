@@ -7,7 +7,7 @@ services:
     container_name: banking-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: banking_db
       POSTGRES_USER: banking_user
