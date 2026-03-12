@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Banking</title>
+    <meta name="description" content="Hệ thống ngân hàng số cao cấp - Quản lý tài khoản, chuyển tiền, giao dịch">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ==================== LOGIN PAGE ==================== -->
+    <div id="login-page" class="page auth-page active">
+        <div class="auth-bg">
+            <div class="floating-shape shape-1"></div>
+            <div class="floating-shape shape-2"></div>
+            <div class="floating-shape shape-3"></div>
+            <div class="floating-shape shape-4"></div>
+        </div>
+        <div class="auth-card">
+            <div class="auth-logo">
+                <span class="material-icons-outlined">account_balance</span>
+                <h2>Premium Banking</h2>
+            </div>
+            <h1>Đăng nhập</h1>
+            <p class="auth-subtitle">Chào mừng bạn quay trở lại với hệ thống ngân hàng số cao cấp.</p>
+            <form id="login-form">
+                <div class="input-group">
+                    <span class="material-icons-outlined input-icon">email</span>
+                    <input type="email" id="login-email" placeholder="Email" required>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons-outlined input-icon">lock</span>
+                    <input type="password" id="login-password" placeholder="Mật khẩu" required>
+                </div>
+                <button type="submit" class="btn-primary" id="login-btn">
+                    <span class="btn-text">Đăng nhập</span>
+                    <span class="btn-loader hidden"></span>
+                </button>
+            </form>
+            <p class="auth-link">Chưa có tài khoản? <a href="#" onclick="showPage('register-page')">Tạo tài khoản</a></p>
+            <div id="login-error" class="error-message hidden"></div>
+        </div>
+    </div>
+
+    <!-- ==================== REGISTER PAGE ==================== -->
+    <div id="register-page" class="page auth-page">
+        <div class="auth-bg">
+            <div class="floating-shape shape-1"></div>
+            <div class="floating-shape shape-2"></div>
+            <div class="floating-shape shape-3"></div>
+        </div>
+        <div class="auth-card">
+            <div class="auth-logo">
+                <span class="material-icons-outlined">account_balance</span>
+                <h2>Premium Banking</h2>
+            </div>
+            <h1>Đăng Ký</h1>
+            <div class="step-indicator"><span class="step-badge">Bước 1/1</span> Thông tin cá nhân</div>
+            <form id="register-form">
+                <div class="input-row">
+                    <div class="input-group">
+                        <span class="material-icons-outlined input-icon">person</span>
+                        <input type="text" id="reg-firstName" placeholder="Họ" required>
+                    </div>
+                    <div class="input-group">
+                        <span class="material-icons-outlined input-icon">person</span>
+                        <input type="text" id="reg-lastName" placeholder="Tên" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons-outlined input-icon">email</span>
+                    <input type="email" id="reg-email" placeholder="Email" required>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons-outlined input-icon">phone</span>
+                    <input type="tel" id="reg-phone" placeholder="Số điện thoại">
+                </div>
+                <div class="input-group">
+                    <span class="material-icons-outlined input-icon">lock</span>
+                    <input type="password" id="reg-password" placeholder="Mật khẩu (tối thiểu 8 ký tự)" required minlength="8">
+                </div>
+                <button type="submit" class="btn-primary" id="register-btn">
+                    <span class="btn-text">Đăng Ký</span>
+                    <span class="btn-loader hidden"></span>
+                </button>
+            </form>
+            <p class="auth-link">Đã có tài khoản? <a href="#" onclick="showPage('login-page')">Đăng nhập</a></p>
+            <div id="register-error" class="error-message hidden"></div>
+        </div>
+    </div>
+
+    <!-- ==================== DASHBOARD ==================== -->
+    <div id="dashboard-page" class="page app-page">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="material-icons-outlined">account_balance</span>
+                <h3>Premium Banking</h3>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" onclick="showPage('dashboard-page')" data-page="dashboard-page">
+                    <span class="material-icons-outlined">dashboard</span>Dashboard
+                </a>
+                <a href="#" class="nav-item" onclick="showPage('accounts-page')" data-page="accounts-page">
+                    <span class="material-icons-outlined">wallet</span>Tài khoản
+                </a>
+                <a href="#" class="nav-item" onclick="showPage('transfer-page')" data-page="transfer-page">
+                    <span class="material-icons-outlined">swap_horiz</span>Chuyển tiền
+                </a>
+                <a href="#" class="nav-item" onclick="showPage('history-page')" data-page="history-page">
+                    <span class="material-icons-outlined">history</span>Lịch sử
+                </a>
+            </nav>
+            <div class="sidebar-user">
+                <div class="user-avatar" id="sidebar-avatar">NA</div>
+                <div class="user-info">
+                    <span class="user-name" id="sidebar-name">Nguyen Van A</span>
+                    <span class="user-role">Premium Member</span>
+                </div>
+                <a href="#" class="nav-item logout" onclick="logout()">
+                    <span class="material-icons-outlined">logout</span>
+                </a>
+            </div>
+        </aside>
+        <main class="main-content">
+            <header class="top-header">
+                <h1 id="greeting">Xin chào, Nguyen Van A 👋</h1>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="loadDashboard()"><span class="material-icons-outlined">refresh</span></button>
+                </div>
+            </header>
+            <div class="stats-grid">
+                <div class="stat-card gradient-blue">
+                    <div class="stat-icon"><span class="material-icons-outlined">account_balance_wallet</span></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Tổng số dư</span>
+                        <span class="stat-value" id="total-balance">0 VND</span>
+                    </div>
+                </div>
+                <div class="stat-card gradient-green">
+                    <div class="stat-icon"><span class="material-icons-outlined">trending_up</span></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Số tài khoản</span>
+                        <span class="stat-value" id="account-count">0</span>
+                    </div>
+                </div>
+                <div class="stat-card gradient-purple">
+                    <div class="stat-icon"><span class="material-icons-outlined">credit_card</span></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Tài khoản hoạt động</span>
+                        <span class="stat-value" id="active-accounts">0</span>
+                    </div>
+                </div>
+                <div class="stat-card gradient-orange">
+                    <div class="stat-icon"><span class="material-icons-outlined">receipt_long</span></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Giao dịch gần đây</span>
+                        <span class="stat-value" id="recent-tx-count">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="content-grid">
+                <section class="card accounts-section">
+                    <div class="card-header">
+                        <h2>Tài khoản của tôi</h2>
+                        <button class="btn-sm" onclick="showPage('accounts-page')">Xem tất cả</button>
+                    </div>
+                    <div class="account-cards" id="dashboard-accounts"></div>
+                </section>
+                <section class="card transactions-section">
+                    <div class="card-header">
+                        <h2>Giao dịch gần đây</h2>
+                        <button class="btn-sm" onclick="showPage('history-page')">Xem tất cả</button>
+                    </div>
+                    <div class="tx-list" id="dashboard-transactions">
+                        <p class="empty-state">Chưa có giao dịch nào</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== ACCOUNTS PAGE ==================== -->
+    <div id="accounts-page" class="page app-page">
+        <aside class="sidebar"><!-- cloned via JS --></aside>
+        <main class="main-content">
+            <header class="top-header">
+                <h1>Tài khoản</h1>
+                <button class="btn-primary btn-header" onclick="showCreateAccountModal()">
+                    <span class="material-icons-outlined">add</span> Tạo tài khoản
+                </button>
+            </header>
+            <div class="account-cards-full" id="accounts-list"></div>
+        </main>
+    </div>
+
+    <!-- ==================== TRANSFER PAGE ==================== -->
+    <div id="transfer-page" class="page app-page">
+        <aside class="sidebar"><!-- cloned via JS --></aside>
+        <main class="main-content">
+            <header class="top-header"><h1>Chuyển tiền</h1></header>
+            <div class="transfer-container">
+                <div class="card transfer-form-card">
+                    <h2><span class="material-icons-outlined">swap_horiz</span> Chuyển khoản</h2>
+                    <form id="transfer-form">
+                        <div class="input-group">
+                            <label>Tài khoản nguồn</label>
+                            <select id="source-account" required></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Số tài khoản đích</label>
+                            <div class="input-with-icon">
+                                <span class="material-icons-outlined input-icon">account_circle</span>
+                                <input type="text" id="dest-account" placeholder="Nhập số tài khoản" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Số tiền (VND)</label>
+                            <div class="input-with-icon">
+                                <span class="material-icons-outlined input-icon">payments</span>
+                                <input type="number" id="transfer-amount" placeholder="0" min="1" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Nội dung chuyển tiền</label>
+                            <textarea id="transfer-desc" placeholder="Nội dung..."></textarea>
+                        </div>
+                        <div class="transfer-summary" id="transfer-summary" style="display:none;">
+                            <div class="summary-row"><span>Số tiền:</span><strong id="sum-amount">0 VND</strong></div>
+                            <div class="summary-row"><span>Phí:</span><strong>0 VND</strong></div>
+                            <div class="summary-divider"></div>
+                            <div class="summary-row total"><span>Tổng cộng:</span><strong id="sum-total">0 VND</strong></div>
+                        </div>
+                        <button type="submit" class="btn-primary" id="transfer-btn">
+                            <span class="material-icons-outlined">lock</span>
+                            <span class="btn-text">Xác nhận chuyển tiền</span>
+                            <span class="btn-loader hidden"></span>
+                        </button>
+                    </form>
+                    <div id="transfer-error" class="error-message hidden"></div>
+                </div>
+                <div class="card transfer-result hidden" id="transfer-result">
+                    <div class="success-icon"><span class="material-icons-outlined">check_circle</span></div>
+                    <h2>Chuyển tiền thành công!</h2>
+                    <p class="ref-number" id="result-ref"></p>
+                    <p class="result-amount" id="result-amount"></p>
+                    <button class="btn-primary" onclick="resetTransfer()">Xong</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== HISTORY PAGE ==================== -->
+    <div id="history-page" class="page app-page">
+        <aside class="sidebar"><!-- cloned via JS --></aside>
+        <main class="main-content">
+            <header class="top-header"><h1>Lịch sử giao dịch</h1></header>
+            <div class="history-filters card">
+                <select id="filter-account" onchange="loadHistory()"><option value="">Tất cả tài khoản</option></select>
+                <input type="text" id="filter-ref" placeholder="Tìm mã tham chiếu..." onkeyup="loadHistory()">
+            </div>
+            <div class="card">
+                <table class="tx-table">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Mã tham chiếu</th>
+                            <th>Loại</th>
+                            <th>Số tiền</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        <tr><td colspan="5" class="empty-state">Chưa có giao dịch</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== CREATE ACCOUNT MODAL ==================== -->
+    <div class="modal-overlay hidden" id="create-account-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Tạo tài khoản mới</h2>
+                <button class="icon-btn" onclick="closeModal('create-account-modal')"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <form id="create-account-form">
+                <div class="input-group">
+                    <label>Tên tài khoản</label>
+                    <input type="text" id="acc-name" placeholder="VD: Tài khoản tiết kiệm" required>
+                </div>
+                <div class="input-group">
+                    <label>Loại tài khoản</label>
+                    <select id="acc-type" required>
+                        <option value="SAVINGS">Tiết kiệm (Savings)</option>
+                        <option value="CHECKING">Thanh toán (Checking)</option>
+                        <option value="BUSINESS">Doanh nghiệp (Business)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary">Tạo tài khoản</button>
+            </form>
+            <div id="create-acc-error" class="error-message hidden"></div>
+        </div>
+    </div>
+
+    <!-- ==================== NOTIFICATION TOAST ==================== -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
