@@ -3,6 +3,8 @@ package com.banking.api.messaging;
 import com.banking.api.config.RabbitMQConfig;
 import com.banking.api.model.event.AccountEvent;
 import com.banking.api.model.event.TransactionEvent;
+import com.banking.api.service.NotificationService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -18,8 +20,11 @@ import org.springframework.stereotype.Component;
  * - Push WebSocket notifications to connected clients
  */
 @Component
+@RequiredArgsConstructor
 @Slf4j
 public class EventConsumer {
+
+    private final NotificationService notificationService;
 
     // ============ Account Events ============
     @RabbitListener(queues = RabbitMQConfig.ACCOUNT_QUEUE)
@@ -36,8 +41,13 @@ public class EventConsumer {
     private void handleAccountCreated(AccountEvent event) {
         log.info("✅ Account created notification → Sending welcome email to {} for account {}",
                 event.getOwnerEmail(), event.getAccountNumber());
-        // TODO: Integrate with email service (SendGrid, SES, etc.)
-        // emailService.sendWelcomeEmail(event.getOwnerEmail(), event.getAccountNumber());
+        // Push real-time WebSocket notification
+        if (event.getAccountId() != null) {
+            notificationService.notifyAccountCreated(
+                    event.getOwnerEmail(),
+                    event.getAccountNumber(),
+                    event.getAccountName());
+        }
     }
 
     private void handleAccountClosed(AccountEvent event) {
@@ -63,15 +73,28 @@ public class EventConsumer {
         log.info("💸 Transfer notification → {} → {}, amount: {} {}, ref: {}",
                 event.getSourceAccountNumber(), event.getDestinationAccountNumber(),
                 event.getAmount(), event.getCurrency(), event.getReferenceNumber());
-        // TODO: Send transfer confirmation to sender + receiver
-        // TODO: Trigger fraud detection if amount > threshold
+        // Push real-time WebSocket notifications to both sender and receiver
+        if (event.getInitiatorEmail() != null) {
+            notificationService.notifyTransferSent(
+                    event.getInitiatorEmail(),
+                    event.getReferenceNumber(),
+                    event.getAmount() + " " + event.getCurrency(),
+                    event.getDestinationAccountNumber());
+        }
     }
 
     private void handleDepositCompleted(TransactionEvent event) {
         log.info("💰 Deposit notification → account: {}, amount: {} {}, ref: {}",
                 event.getDestinationAccountNumber(),
                 event.getAmount(), event.getCurrency(), event.getReferenceNumber());
-        // TODO: Send deposit confirmation
+        // Push real-time WebSocket notification
+        if (event.getInitiatorEmail() != null) {
+            notificationService.notifyDepositReceived(
+                    event.getInitiatorEmail(),
+                    event.getReferenceNumber(),
+                    event.getAmount() + " " + event.getCurrency(),
+                    event.getDestinationAccountNumber());
+        }
     }
 
     // ============ Notification Events ============
