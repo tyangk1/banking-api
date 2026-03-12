@@ -15,6 +15,8 @@ import com.banking.api.model.enums.TransactionType;
 import com.banking.api.repository.AccountRepository;
 import com.banking.api.repository.TransactionRepository;
 import com.banking.api.service.TransactionService;
+import com.banking.api.messaging.EventPublisher;
+import com.banking.api.model.event.TransactionEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -37,6 +39,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
+    private final EventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -99,6 +102,22 @@ public class TransactionServiceImpl implements TransactionService {
                 sourceAccount.getAccountNumber(), destAccount.getAccountNumber(),
                 request.getAmount(), savedTransaction.getReferenceNumber());
 
+        // Publish event to RabbitMQ
+        eventPublisher.publishTransfer(TransactionEvent.builder()
+                .eventType(TransactionEvent.EventType.TRANSFER)
+                .transactionId(savedTransaction.getId())
+                .referenceNumber(savedTransaction.getReferenceNumber())
+                .amount(request.getAmount())
+                .fee(BigDecimal.ZERO)
+                .currency(sourceAccount.getCurrency())
+                .description(request.getDescription())
+                .sourceAccountNumber(sourceAccount.getAccountNumber())
+                .destinationAccountNumber(destAccount.getAccountNumber())
+                .initiatorEmail(sourceAccount.getUser().getEmail())
+                .initiatorName(sourceAccount.getUser().getFullName())
+                .timestamp(java.time.LocalDateTime.now())
+                .build());
+
         return mapToResponse(savedTransaction);
     }
 
@@ -134,6 +153,19 @@ public class TransactionServiceImpl implements TransactionService {
         Transaction savedTransaction = transactionRepository.save(transaction);
         log.info("Deposit completed: account: {}, amount: {}, ref: {} [all caches evicted]",
                 account.getAccountNumber(), request.getAmount(), savedTransaction.getReferenceNumber());
+
+        // Publish event to RabbitMQ
+        eventPublisher.publishDeposit(TransactionEvent.builder()
+                .eventType(TransactionEvent.EventType.DEPOSIT)
+                .transactionId(savedTransaction.getId())
+                .referenceNumber(savedTransaction.getReferenceNumber())
+                .amount(request.getAmount())
+                .fee(BigDecimal.ZERO)
+                .currency(account.getCurrency())
+                .description(request.getDescription())
+                .destinationAccountNumber(account.getAccountNumber())
+                .timestamp(java.time.LocalDateTime.now())
+                .build());
 
         return mapToResponse(savedTransaction);
     }
