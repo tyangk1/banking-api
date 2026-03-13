@@ -4,6 +4,7 @@ import com.banking.api.model.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +41,18 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean enabled = true;
+
+    @Column(length = 500)
+    private String avatarUrl;
+
+    @Column(length = 500)
+    private String address;
+
+    private LocalDate dateOfBirth;
+
+    @Column(length = 20)
+    @Builder.Default
+    private String kycStatus = "PENDING";
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
