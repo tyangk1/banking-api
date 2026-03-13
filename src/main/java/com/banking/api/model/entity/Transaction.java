@@ -50,6 +50,10 @@ public class Transaction extends BaseEntity {
     @JoinColumn(name = "source_account_id")
     private Account sourceAccount;
 
+    @Column(length = 50)
+    @Builder.Default
+    private String category = "OTHER";
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "destination_account_id")
     private Account destinationAccount;
