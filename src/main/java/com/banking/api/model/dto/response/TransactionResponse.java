@@ -51,6 +51,9 @@ public class TransactionResponse {
     @Schema(description = "Destination account number")
     private String destinationAccountNumber;
 
+    @Schema(description = "Transaction category", example = "SALARY")
+    private String category;
+
     @Schema(description = "Transaction date")
     private LocalDateTime createdAt;
 }
