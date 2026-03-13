@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -36,6 +37,24 @@ public class UserResponse {
 
     @Schema(description = "User role")
     private Role role;
+
+    @Schema(description = "Avatar URL")
+    private String avatarUrl;
+
+    @Schema(description = "Home address")
+    private String address;
+
+    @Schema(description = "Date of birth")
+    private LocalDate dateOfBirth;
+
+    @Schema(description = "KYC status: PENDING, VERIFIED, REJECTED")
+    private String kycStatus;
+
+    @Schema(description = "Account enabled")
+    private boolean enabled;
+
+    @Schema(description = "Number of bank accounts")
+    private int accountCount;
 
     @Schema(description = "Account creation time")
     private LocalDateTime createdAt;
