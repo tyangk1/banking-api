@@ -183,9 +183,30 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional(readOnly = true)
     public Page<TransactionResponse> getTransactionsByAccountId(String accountId, Pageable pageable) {
-        // Pageable results not cached (dynamic pagination)
         return transactionRepository.findByAccountId(accountId, pageable)
                 .map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TransactionResponse> searchTransactions(
+            String accountId,
+            TransactionType type,
+            TransactionStatus status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            String keyword,
+            String category,
+            Pageable pageable) {
+        log.info("Searching transactions — account: {}, type: {}, status: {}, keyword: {}, category: {}",
+                accountId, type, status, keyword, category);
+        return transactionRepository.findAll(
+                com.banking.api.repository.specification.TransactionSpecification.withFilters(
+                        accountId, type, status, fromDate, toDate, minAmount, maxAmount, keyword, category),
+                pageable
+        ).map(this::mapToResponse);
     }
 
     private void validateAccountActive(Account account) {
@@ -215,6 +236,7 @@ public class TransactionServiceImpl implements TransactionService {
                         ? transaction.getSourceAccount().getAccountNumber() : null)
                 .destinationAccountNumber(transaction.getDestinationAccount() != null
                         ? transaction.getDestinationAccount().getAccountNumber() : null)
+                .category(transaction.getCategory())
                 .createdAt(transaction.getCreatedAt())
                 .build();
     }
