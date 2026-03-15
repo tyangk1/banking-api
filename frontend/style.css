@@ -464,3 +464,17 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
     color: var(--text-secondary); border-radius: 8px; transition: var(--transition);
 }
 .icon-btn:hover { background: var(--bg-glass); color: var(--text-primary); }
+
+/* ============ OTP DIGIT INPUTS ============ */
+.otp-digit {
+    width: 46px; height: 56px; text-align: center;
+    font-size: 24px; font-weight: 700; letter-spacing: 0;
+    background: var(--bg-glass); border: 2px solid var(--border-glass);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    transition: var(--transition); caret-color: var(--accent-blue);
+}
+.otp-digit:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+    outline: none;
+}

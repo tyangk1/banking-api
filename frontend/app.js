@@ -288,6 +288,10 @@ function populateSourceAccounts() {
     });
 }
 
+const OTP_THRESHOLD = 5000000; // 5 million VND
+let pendingTransfer = null;
+let otpTimerInterval = null;
+
 async function handleTransfer(e) {
     e.preventDefault();
     const btn = document.getElementById('transfer-btn');
@@ -295,27 +299,57 @@ async function handleTransfer(e) {
     setLoading(btn, true);
     hideError(errorEl);
 
+    const transferData = {
+        sourceAccountNumber: document.getElementById('source-account').value,
+        destinationAccountNumber: document.getElementById('dest-account').value,
+        amount: parseFloat(document.getElementById('transfer-amount').value),
+        description: document.getElementById('transfer-desc').value
+    };
+
     try {
-        const data = await apiPost('/v1/transactions/transfer', {
-            sourceAccountNumber: document.getElementById('source-account').value,
-            destinationAccountNumber: document.getElementById('dest-account').value,
-            amount: parseFloat(document.getElementById('transfer-amount').value),
-            description: document.getElementById('transfer-desc').value
-        });
+        // Check if OTP is required (>= 5M VND)
+        if (transferData.amount >= OTP_THRESHOLD) {
+            // Request OTP
+            const token = localStorage.getItem(TOKEN_KEY);
+            const res = await fetch(`${API_BASE}/v1/otp/request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(transferData)
+            });
+            const otpData = await res.json();
+            if (!res.ok || !otpData.success) throw new Error(otpData.message || 'Không thể gửi OTP');
 
-        document.querySelector('.transfer-form-card').classList.add('hidden');
-        const resultCard = document.getElementById('transfer-result');
-        resultCard.classList.remove('hidden');
-        document.getElementById('result-ref').textContent = `Mã: ${data.data.referenceNumber}`;
-        document.getElementById('result-amount').textContent = formatCurrency(data.data.amount) + ' VND';
+            // Store pending transfer and show OTP modal
+            pendingTransfer = {
+                ...transferData,
+                otpToken: otpData.data.otpToken
+            };
 
-        showToast('Chuyển tiền thành công!', 'success');
-        loadDashboard();
+            document.getElementById('otp-email-info').textContent =
+                `Mã xác thực đã được gửi đến ${otpData.data.maskedEmail}`;
+            showOtpModal();
+            setLoading(btn, false);
+            return;
+        }
+
+        // Normal transfer (below threshold)
+        const data = await apiPost('/v1/transactions/transfer', transferData);
+        showTransferSuccess(data);
     } catch (err) {
         showError(errorEl, err.message || 'Chuyển tiền thất bại');
     } finally {
         setLoading(btn, false);
     }
+}
+
+function showTransferSuccess(data) {
+    document.querySelector('.transfer-form-card').classList.add('hidden');
+    const resultCard = document.getElementById('transfer-result');
+    resultCard.classList.remove('hidden');
+    document.getElementById('result-ref').textContent = `Mã: ${data.data.referenceNumber}`;
+    document.getElementById('result-amount').textContent = formatCurrency(data.data.amount) + ' VND';
+    showToast('Chuyển tiền thành công!', 'success');
+    loadDashboard();
 }
 
 function resetTransfer() {
@@ -324,6 +358,101 @@ function resetTransfer() {
     document.getElementById('transfer-form').reset();
     document.getElementById('transfer-summary').style.display = 'none';
     populateSourceAccounts();
+}
+
+// ============ OTP VERIFICATION ============
+function showOtpModal() {
+    const modal = document.getElementById('otp-modal');
+    const digits = document.querySelectorAll('.otp-digit');
+    digits.forEach(d => { d.value = ''; });
+    digits[0]?.focus();
+    document.getElementById('otp-error').classList.add('hidden');
+    modal.classList.remove('hidden');
+    startOtpTimer(300);
+}
+
+function closeOtpModal() {
+    document.getElementById('otp-modal').classList.add('hidden');
+    pendingTransfer = null;
+    clearInterval(otpTimerInterval);
+}
+
+function onOtpInput(el, idx) {
+    el.value = el.value.replace(/\D/g, '');
+    if (el.value && idx < 5) {
+        document.querySelectorAll('.otp-digit')[idx + 1]?.focus();
+    }
+}
+
+function onOtpKeydown(e, idx) {
+    if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+        document.querySelectorAll('.otp-digit')[idx - 1]?.focus();
+    }
+    if (e.key === 'Enter') submitOtp();
+}
+
+function startOtpTimer(seconds) {
+    clearInterval(otpTimerInterval);
+    let remaining = seconds;
+    const timerEl = document.getElementById('otp-timer');
+    const update = () => {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        timerEl.textContent = `⏰ Hết hạn sau: ${m}:${String(s).padStart(2, '0')}`;
+        if (remaining <= 0) {
+            clearInterval(otpTimerInterval);
+            timerEl.textContent = '❌ Mã OTP đã hết hạn';
+            timerEl.style.color = 'var(--accent-red)';
+        }
+        remaining--;
+    };
+    update();
+    otpTimerInterval = setInterval(update, 1000);
+}
+
+async function submitOtp() {
+    const digits = document.querySelectorAll('.otp-digit');
+    const otpCode = Array.from(digits).map(d => d.value).join('');
+    const errorEl = document.getElementById('otp-error');
+
+    if (otpCode.length !== 6) {
+        errorEl.textContent = 'Vui lòng nhập đầy đủ 6 số OTP';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    const btn = document.getElementById('otp-submit-btn');
+    setLoading(btn, true);
+    errorEl.classList.add('hidden');
+
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const res = await fetch(`${API_BASE}/v1/otp/verify-and-transfer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                otpToken: pendingTransfer.otpToken,
+                otpCode: otpCode,
+                sourceAccountNumber: pendingTransfer.sourceAccountNumber,
+                destinationAccountNumber: pendingTransfer.destinationAccountNumber,
+                amount: pendingTransfer.amount,
+                description: pendingTransfer.description
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'OTP không hợp lệ');
+
+        closeOtpModal();
+        showTransferSuccess(data);
+        showToast('🔐 Giao dịch xác thực OTP thành công!', 'success');
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        digits.forEach(d => { d.value = ''; });
+        digits[0]?.focus();
+    } finally {
+        setLoading(btn, false);
+    }
 }
 
 // ============ DEPOSIT ============

@@ -153,6 +153,12 @@
             <version>3.5.3</version>
         </dependency>
 
+        <!-- ======================== Email (OTP) ======================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- ======================== Testing ======================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
