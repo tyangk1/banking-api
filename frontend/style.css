@@ -430,3 +430,18 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
     .main-content { margin-left: 70px; padding: 20px; }
     .content-grid { grid-template-columns: 1fr; }
 }
+
+/* ============ SMALL ACTION BUTTONS ============ */
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+}
+.btn-sm:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.btn-success { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.btn-danger  { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
