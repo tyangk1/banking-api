@@ -1,0 +1,127 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Application Status",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "targets": [{ "expr": "up{job=\"banking-api\"}", "legendFormat": "Status" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }
+          ]
+        }
+      }
+    },
+    {
+      "title": "JVM Memory Used (MB)",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "targets": [{ "expr": "jvm_memory_used_bytes{area=\"heap\"} / 1024 / 1024", "legendFormat": "Heap" }],
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "max": 512, "thresholds": { "steps": [{"color":"green","value":null},{"color":"yellow","value":200},{"color":"red","value":400}] } } }
+    },
+    {
+      "title": "CPU Usage (%)",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "targets": [{ "expr": "system_cpu_usage * 100", "legendFormat": "CPU" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100, "thresholds": { "steps": [{"color":"green","value":null},{"color":"yellow","value":50},{"color":"red","value":80}] } } }
+    },
+    {
+      "title": "Active Threads",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "targets": [{ "expr": "jvm_threads_live_threads", "legendFormat": "Threads" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{"color":"green","value":null},{"color":"yellow","value":100},{"color":"red","value":200}] } } }
+    },
+    {
+      "title": "HTTP Requests (Total)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "targets": [{ "expr": "sum(http_server_requests_seconds_count)", "legendFormat": "Total" }]
+    },
+    {
+      "title": "HTTP Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[1m])) by (method, uri)", "legendFormat": "{{method}} {{uri}}" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2 } } }
+    },
+    {
+      "title": "HTTP Response Time (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[5m])) by (le, uri))", "legendFormat": "p95 {{uri}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
+      "title": "HTTP Requests by Status Code",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "sum(http_server_requests_seconds_count{uri!~\"/actuator.*\"}) by (status)", "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "title": "JVM Memory Over Time (MB)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 10, "x": 6, "y": 12 },
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{area=\"heap\"} / 1024 / 1024", "legendFormat": "Heap Used" },
+        { "expr": "jvm_memory_committed_bytes{area=\"heap\"} / 1024 / 1024", "legendFormat": "Heap Committed" },
+        { "expr": "jvm_memory_max_bytes{area=\"heap\"} / 1024 / 1024", "legendFormat": "Heap Max" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 } } }
+    },
+    {
+      "title": "Database Connection Pool",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+      "targets": [
+        { "expr": "hikaricp_connections_active", "legendFormat": "Active" },
+        { "expr": "hikaricp_connections_idle", "legendFormat": "Idle" },
+        { "expr": "hikaricp_connections_pending", "legendFormat": "Pending" },
+        { "expr": "hikaricp_connections", "legendFormat": "Total" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
+      "title": "GC Pauses (per min)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        { "expr": "rate(jvm_gc_pause_seconds_sum[1m])", "legendFormat": "GC Time {{action}} {{cause}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "bars", "fillOpacity": 50 } } }
+    },
+    {
+      "title": "Cache Hit/Miss Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        { "expr": "sum(rate(cache_gets_total{result=\"hit\"}[5m])) by (cache)", "legendFormat": "Hit: {{cache}}" },
+        { "expr": "sum(rate(cache_gets_total{result=\"miss\"}[5m])) by (cache)", "legendFormat": "Miss: {{cache}}" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["banking", "spring-boot", "java"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Ho_Chi_Minh",
+  "title": "Banking API — Overview",
+  "uid": "banking-api-overview",
+  "version": 1
+}

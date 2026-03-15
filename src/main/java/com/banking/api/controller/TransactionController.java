@@ -48,8 +48,7 @@ public class TransactionController {
     }
 
     @PostMapping("/deposit")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
-    @Operation(summary = "Deposit funds", description = "Deposit money into an account (Manager/Admin only)")
+    @Operation(summary = "Deposit funds", description = "Deposit money into an account")
     public ResponseEntity<ApiResponse<TransactionResponse>> deposit(
             @Valid @RequestBody DepositRequest request) {
         TransactionResponse response = transactionService.deposit(request);
