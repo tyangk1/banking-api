@@ -31,5 +31,7 @@ public class TransactionEvent implements Serializable {
     private String destinationAccountNumber;
     private String initiatorEmail;
     private String initiatorName;
+    private String receiverEmail;
+    private String receiverName;
     private LocalDateTime timestamp;
 }

@@ -105,11 +105,17 @@
                 <a href="#" class="nav-item" onclick="showPage('accounts-page')" data-page="accounts-page">
                     <span class="material-icons-outlined">wallet</span>Tài khoản
                 </a>
+                <a href="#" class="nav-item" onclick="showPage('deposit-page')" data-page="deposit-page">
+                    <span class="material-icons-outlined">savings</span>Nạp tiền
+                </a>
                 <a href="#" class="nav-item" onclick="showPage('transfer-page')" data-page="transfer-page">
                     <span class="material-icons-outlined">swap_horiz</span>Chuyển tiền
                 </a>
                 <a href="#" class="nav-item" onclick="showPage('history-page')" data-page="history-page">
                     <span class="material-icons-outlined">history</span>Lịch sử
+                </a>
+                <a href="#" class="nav-item" onclick="showPage('analytics-page')" data-page="analytics-page">
+                    <span class="material-icons-outlined">insights</span>Phân tích
                 </a>
             </nav>
             <div class="sidebar-user">
@@ -251,11 +257,62 @@
         </main>
     </div>
 
+    <!-- ==================== DEPOSIT PAGE ==================== -->
+    <div id="deposit-page" class="page app-page">
+        <aside class="sidebar"><!-- cloned via JS --></aside>
+        <main class="main-content">
+            <header class="top-header"><h1>Nạp tiền</h1></header>
+            <div class="transfer-container">
+                <div class="card transfer-form-card" id="deposit-form-card">
+                    <h2><span class="material-icons-outlined">savings</span> Nạp tiền vào tài khoản</h2>
+                    <form id="deposit-form">
+                        <div class="input-group">
+                            <label>Tài khoản nhận</label>
+                            <select id="deposit-account" required></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Số tiền (VND)</label>
+                            <div class="input-with-icon">
+                                <span class="material-icons-outlined input-icon">payments</span>
+                                <input type="number" id="deposit-amount" placeholder="0" min="1000" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Nội dung</label>
+                            <textarea id="deposit-desc" placeholder="VD: Nạp lương tháng 3..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary" id="deposit-btn">
+                            <span class="material-icons-outlined">account_balance_wallet</span>
+                            <span class="btn-text">Xác nhận nạp tiền</span>
+                            <span class="btn-loader hidden"></span>
+                        </button>
+                    </form>
+                    <div id="deposit-error" class="error-message hidden"></div>
+                </div>
+                <div class="card transfer-result hidden" id="deposit-result">
+                    <div class="success-icon"><span class="material-icons-outlined">check_circle</span></div>
+                    <h2>Nạp tiền thành công!</h2>
+                    <p class="ref-number" id="deposit-result-ref"></p>
+                    <p class="result-amount" id="deposit-result-amount"></p>
+                    <button class="btn-primary" onclick="resetDeposit()">Xong</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
     <!-- ==================== HISTORY PAGE ==================== -->
     <div id="history-page" class="page app-page">
         <aside class="sidebar"><!-- cloned via JS --></aside>
         <main class="main-content">
-            <header class="top-header"><h1>Lịch sử giao dịch</h1></header>
+            <header class="top-header">
+                <h1>Lịch sử giao dịch</h1>
+                <div class="header-actions">
+                    <button class="btn-primary" onclick="downloadPdfStatement()" id="btn-download-pdf" style="display:flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;">
+                        <span class="material-icons-outlined" style="font-size:18px">picture_as_pdf</span>
+                        <span class="btn-text">Xuất PDF</span>
+                    </button>
+                </div>
+            </header>
             <div class="history-filters card">
                 <select id="filter-account" onchange="loadHistory()"><option value="">Tất cả tài khoản</option></select>
                 <input type="text" id="filter-ref" placeholder="Tìm mã tham chiếu..." onkeyup="loadHistory()">
@@ -305,9 +362,69 @@
         </div>
     </div>
 
+    <!-- ==================== ANALYTICS PAGE ==================== -->
+    <div id="analytics-page" class="page app-page">
+        <aside class="sidebar"><!-- cloned via JS --></aside>
+        <main class="main-content">
+            <header class="top-header">
+                <h1>📊 Phân tích chi tiêu</h1>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="loadAnalytics()" title="Tải lại"><span class="material-icons-outlined">refresh</span></button>
+                </div>
+            </header>
+
+            <!-- Summary Stats -->
+            <div class="stats-grid" id="analytics-stats">
+                <div class="stat-card gradient-green">
+                    <div class="stat-icon"><span class="material-icons-outlined">trending_up</span></div>
+                    <div><span class="stat-label">Thu nhập</span><span class="stat-value" id="stat-income">0</span></div>
+                </div>
+                <div class="stat-card gradient-orange">
+                    <div class="stat-icon"><span class="material-icons-outlined">trending_down</span></div>
+                    <div><span class="stat-label">Chi tiêu</span><span class="stat-value" id="stat-expense">0</span></div>
+                </div>
+                <div class="stat-card gradient-blue">
+                    <div class="stat-icon"><span class="material-icons-outlined">account_balance</span></div>
+                    <div><span class="stat-label">Chênh lệch</span><span class="stat-value" id="stat-net">0</span></div>
+                </div>
+                <div class="stat-card gradient-purple">
+                    <div class="stat-icon"><span class="material-icons-outlined">receipt_long</span></div>
+                    <div><span class="stat-label">Tổng GD</span><span class="stat-value" id="stat-count">0</span></div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="content-grid" style="margin-bottom:20px;">
+                <div class="card">
+                    <div class="card-header"><h2>Thu nhập vs Chi tiêu</h2></div>
+                    <div style="position:relative;height:300px;">
+                        <canvas id="chart-income-expense"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h2>Phân loại chi tiêu</h2></div>
+                    <div style="position:relative;height:300px;">
+                        <canvas id="chart-category"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Beneficiaries -->
+            <div class="card">
+                <div class="card-header"><h2>Top người nhận chuyển khoản</h2></div>
+                <div id="top-beneficiaries" class="tx-list">
+                    <p class="empty-state">Chưa có dữ liệu</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
     <!-- ==================== NOTIFICATION TOAST ==================== -->
     <div class="toast-container" id="toast-container"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -116,8 +116,6 @@ body {
     position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
     font-size: 20px; color: var(--text-muted); pointer-events: none;
 }
-.input-group label ~ .input-with-icon .input-icon,
-.input-group label + .input-icon { top: calc(50% + 12px); }
 
 input, select, textarea {
     width: 100%;
@@ -131,7 +129,8 @@ input, select, textarea {
     transition: var(--transition);
     outline: none;
 }
-select { padding-left: 14px; cursor: pointer; appearance: none; }
+select { padding-left: 14px; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+select option { background: #1a2744; color: #ffffff; padding: 8px; }
 textarea { padding-left: 14px; min-height: 80px; resize: vertical; }
 input:focus, select:focus, textarea:focus {
     border-color: var(--accent-blue);

@@ -24,16 +24,14 @@ public class NotificationService {
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
-     * Send notification to a specific user via their user-specific queue.
+     * Send notification to a specific user via broadcast.
+     * Frontend filters by userId to only show relevant notifications.
+     * (convertAndSendToUser requires WebSocket authentication which we don't have)
      */
     public void sendToUser(String userId, NotificationEvent notification) {
         notification.setTimestamp(LocalDateTime.now());
         notification.setUserId(userId);
-        messagingTemplate.convertAndSendToUser(
-                userId,
-                "/queue/notifications",
-                notification
-        );
+        messagingTemplate.convertAndSend("/topic/notifications", notification);
         log.info("📤 WS notification sent to user={}: type={}, title={}",
                 userId, notification.getType(), notification.getTitle());
     }
