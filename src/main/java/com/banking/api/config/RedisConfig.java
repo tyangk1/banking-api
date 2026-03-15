@@ -7,8 +7,11 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.cache.interceptor.KeyGenerator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,12 +32,13 @@ import java.util.StringJoiner;
  * Redis cache configuration with:
  * - Custom TTL per cache name
  * - JSON serialization (human-readable in Redis)
+ * - Error-resilient: cache failures fallback to DB instead of throwing 500
  * - Custom key generator based on class + method + params
  */
 @Configuration
 @EnableCaching
 @Slf4j
-public class RedisConfig {
+public class RedisConfig implements CachingConfigurer {
 
     // ============ Cache Names ============
     public static final String CACHE_ACCOUNTS = "accounts";
@@ -80,6 +84,35 @@ public class RedisConfig {
                 .withInitialCacheConfigurations(cacheConfigs)
                 .transactionAware()
                 .build();
+    }
+
+    /**
+     * Error-resilient cache handler: log errors and fallback to DB
+     * instead of throwing 500 errors to the client.
+     */
+    @Override
+    @Bean
+    public CacheErrorHandler errorHandler() {
+        return new CacheErrorHandler() {
+            @Override
+            public void handleCacheGetError(RuntimeException e, Cache cache, Object key) {
+                log.warn("Cache GET error [{}:{}] — fallback to DB: {}", cache.getName(), key, e.getMessage());
+                // Evict the corrupted entry so next request re-caches fresh data
+                try { cache.evict(key); } catch (Exception ignored) {}
+            }
+            @Override
+            public void handleCachePutError(RuntimeException e, Cache cache, Object key, Object value) {
+                log.warn("Cache PUT error [{}:{}]: {}", cache.getName(), key, e.getMessage());
+            }
+            @Override
+            public void handleCacheEvictError(RuntimeException e, Cache cache, Object key) {
+                log.warn("Cache EVICT error [{}:{}]: {}", cache.getName(), key, e.getMessage());
+            }
+            @Override
+            public void handleCacheClearError(RuntimeException e, Cache cache) {
+                log.warn("Cache CLEAR error [{}]: {}", cache.getName(), e.getMessage());
+            }
+        };
     }
 
     /**
