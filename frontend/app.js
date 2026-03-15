@@ -460,6 +460,7 @@ function showPage(pageId) {
         if (pageId === 'history-page') { populateFilterAccounts(); loadHistory(); }
         if (pageId === 'analytics-page') { loadAnalytics(); }
         if (pageId === 'recurring-page') { populateRecurringAccounts(); loadRecurring(); }
+        if (pageId === 'beneficiary-page') { loadBeneficiaries(); }
     }
 }
 
@@ -1024,4 +1025,140 @@ function showNotificationToast(icon, title, message, type) {
     toast.onclick = () => { toast.remove(); loadDashboard(); };
     container.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 300); }, 6000);
+}
+
+// ============ BENEFICIARY MANAGEMENT ============
+let benSearchTimer = null;
+
+async function loadBeneficiaries() {
+    try {
+        const data = await apiGet('/v1/beneficiaries?size=100');
+        const page = data.data;
+        const list = page.content || page;
+        renderBeneficiaryList(list);
+    } catch (err) { console.error('Failed to load beneficiaries:', err); }
+}
+
+function renderBeneficiaryList(list) {
+    const container = document.getElementById('ben-list');
+    const favContainer = document.getElementById('ben-favorites');
+    const countEl = document.getElementById('ben-count');
+    if (countEl) countEl.textContent = list.length;
+
+    const favorites = list.filter(b => b.favorite);
+    const others = list.filter(b => !b.favorite);
+
+    // Render favorites
+    if (favorites.length > 0) {
+        favContainer.innerHTML = `
+            <div style="font-size:12px;color:var(--accent-orange);font-weight:600;margin-bottom:8px">⭐ Y\u00eau th\u00edch (${favorites.length})</div>
+            ${favorites.map(b => renderBenCard(b)).join('')}`;
+    } else {
+        favContainer.innerHTML = '';
+    }
+
+    // Render all
+    if (others.length > 0) {
+        container.innerHTML = others.map(b => renderBenCard(b)).join('');
+    } else if (favorites.length === 0) {
+        container.innerHTML = '<p class="empty-state">Ch\u01b0a c\u00f3 ng\u01b0\u1eddi nh\u1eadn n\u00e0o</p>';
+    } else {
+        container.innerHTML = '';
+    }
+}
+
+function renderBenCard(b) {
+    const initials = (b.accountHolderName || 'NA').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const favIcon = b.favorite ? 'star' : 'star_outline';
+    const favColor = b.favorite ? '#f59e0b' : 'var(--text-muted)';
+    return `
+    <div class="tx-item" style="gap:12px">
+        <div class="tx-icon" style="background:var(--gradient-purple);color:#fff;font-size:13px;font-weight:700">
+            ${initials}
+        </div>
+        <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px">${b.nickname}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${b.accountNumber} \u2022 ${b.accountHolderName}</div>
+            <div style="font-size:11px;color:var(--text-muted)">CK: ${b.transferCount} l\u1ea7n${b.verified ? ' \u2022 \u2705 X\u00e1c minh' : ''}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+            <button class="icon-btn" onclick="toggleFavorite('${b.id}',${!b.favorite},'${b.nickname}')" title="Y\u00eau th\u00edch" style="color:${favColor}">
+                <span class="material-icons-outlined">${favIcon}</span>
+            </button>
+            <button class="btn-sm btn-success" onclick="quickTransfer('${b.accountNumber}')" title="Chuy\u1ec3n ti\u1ec1n nhanh">\u27A4</button>
+            <button class="btn-sm btn-danger" onclick="deleteBeneficiary('${b.id}','${b.nickname}')" title="X\u00f3a">\u2715</button>
+        </div>
+    </div>`;
+}
+
+async function createBeneficiary(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('ben-error');
+    errorDiv.classList.add('hidden');
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const res = await fetch(`${API_BASE}/v1/beneficiaries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                nickname: document.getElementById('ben-nickname').value,
+                accountNumber: document.getElementById('ben-account').value,
+                accountHolderName: document.getElementById('ben-holder').value,
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Failed');
+        showToast('\u2705 \u0110\u00e3 l\u01b0u ng\u01b0\u1eddi nh\u1eadn m\u1edbi!', 'success');
+        document.getElementById('ben-form').reset();
+        loadBeneficiaries();
+    } catch (err) {
+        errorDiv.textContent = err.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+function searchBeneficiaries() {
+    clearTimeout(benSearchTimer);
+    benSearchTimer = setTimeout(async () => {
+        const q = document.getElementById('ben-search').value.trim();
+        if (!q) { loadBeneficiaries(); return; }
+        try {
+            const data = await apiGet(`/v1/beneficiaries/search?q=${encodeURIComponent(q)}`);
+            const page = data.data;
+            renderBeneficiaryList(page.content || page);
+        } catch (err) { console.error('Search failed:', err); }
+    }, 300);
+}
+
+async function toggleFavorite(id, newState, nickname) {
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        await fetch(`${API_BASE}/v1/beneficiaries/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ nickname: nickname, favorite: newState })
+        });
+        showToast(newState ? '\u2b50 \u0110\u00e3 th\u00eam y\u00eau th\u00edch' : '\u0110\u00e3 b\u1ecf y\u00eau th\u00edch', 'success');
+        loadBeneficiaries();
+    } catch (err) { showToast('L\u1ed7i: ' + err.message, 'error'); }
+}
+
+async function deleteBeneficiary(id, name) {
+    if (!confirm(`X\u00f3a "${name}" kh\u1ecfi danh b\u1ea1?`)) return;
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        await fetch(`${API_BASE}/v1/beneficiaries/${id}`, {
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+        });
+        showToast('\u0110\u00e3 x\u00f3a ng\u01b0\u1eddi nh\u1eadn', 'success');
+        loadBeneficiaries();
+    } catch (err) { showToast('L\u1ed7i: ' + err.message, 'error'); }
+}
+
+function quickTransfer(accountNumber) {
+    showPage('transfer-page');
+    setTimeout(() => {
+        const destInput = document.getElementById('transfer-dest');
+        if (destInput) destInput.value = accountNumber;
+    }, 100);
 }
