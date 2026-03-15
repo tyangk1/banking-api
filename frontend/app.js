@@ -595,6 +595,7 @@ function showPage(pageId) {
         if (pageId === 'analytics-page') { loadAnalytics(); }
         if (pageId === 'recurring-page') { populateRecurringAccounts(); loadRecurring(); }
         if (pageId === 'beneficiary-page') { loadBeneficiaries(); }
+        if (pageId === 'chatbot-page') { document.getElementById('chat-input')?.focus(); }
     }
 }
 
@@ -1411,4 +1412,94 @@ function handleQrDecoded(payload) {
         if (destInput) destInput.value = accountNumber;
         if (amountInput && amount) amountInput.value = amount;
     }, 200);
+}
+
+// ============ AI CHATBOT ============
+let chatHistory = [];
+
+async function handleChatSubmit(e) {
+    e.preventDefault();
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = '';
+    appendMessage('user', message);
+    chatHistory.push({ role: 'user', content: message });
+
+    const sendBtn = document.getElementById('chat-send-btn');
+    sendBtn.disabled = true;
+    showTypingIndicator();
+
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const res = await fetch(`${API_BASE}/v1/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ message, history: chatHistory.slice(-10) })
+        });
+        const data = await res.json();
+        removeTypingIndicator();
+
+        if (data.success && data.data?.response) {
+            const botReply = data.data.response;
+            appendMessage('bot', botReply);
+            chatHistory.push({ role: 'model', content: botReply });
+        } else {
+            appendMessage('bot', '❌ Xin lỗi, đã xảy ra lỗi. Vui lòng thử lại.');
+        }
+    } catch (err) {
+        removeTypingIndicator();
+        appendMessage('bot', '❌ Không thể kết nối đến AI. Vui lòng thử lại.');
+    } finally {
+        sendBtn.disabled = false;
+        input.focus();
+    }
+}
+
+function sendQuickChat(msg) {
+    document.getElementById('chat-input').value = msg;
+    handleChatSubmit(new Event('submit'));
+}
+
+function appendMessage(role, content) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = `chat-msg ${role}`;
+
+    const avatar = role === 'bot'
+        ? '<div class="chat-avatar"><span class="material-icons-outlined">smart_toy</span></div>'
+        : '<div class="chat-avatar"><span class="material-icons-outlined">person</span></div>';
+
+    div.innerHTML = `${avatar}<div class="chat-bubble">${parseMarkdown(content)}</div>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function showTypingIndicator() {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg bot';
+    div.id = 'typing-indicator';
+    div.innerHTML = `
+        <div class="chat-avatar"><span class="material-icons-outlined">smart_toy</span></div>
+        <div class="chat-bubble"><div class="chat-typing"><span></span><span></span><span></span></div></div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeTypingIndicator() {
+    document.getElementById('typing-indicator')?.remove();
+}
+
+function parseMarkdown(text) {
+    return text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`(.+?)`/g, '<code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px;font-size:13px">$1</code>')
+        .replace(/^[-•]\s+(.+)$/gm, '&nbsp;&nbsp;• $1')
+        .replace(/^\d+\.\s+(.+)$/gm, (m, p1, offset, str) => `&nbsp;&nbsp;${m.match(/^\d+/)[0]}. ${p1}`)
+        .replace(/\n/g, '<br>');
 }

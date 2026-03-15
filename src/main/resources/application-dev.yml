@@ -52,6 +52,12 @@ spring:
             enabled: true
         from: ${MAIL_USERNAME:your-email@gmail.com}
 
+# ======================== Gemini AI ========================
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:}
+    model: gemini-2.0-flash
+
 # ======================== Logging ========================
 logging:
   level:
