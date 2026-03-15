@@ -33,11 +33,11 @@ public class Beneficiary extends BaseEntity {
     @Builder.Default
     private String bankName = "Premium Banking";
 
-    @Column(nullable = false)
+    @Column(name = "is_verified", nullable = false)
     @Builder.Default
     private boolean verified = false;
 
-    @Column(nullable = false)
+    @Column(name = "is_favorite", nullable = false)
     @Builder.Default
     private boolean favorite = false;
 
