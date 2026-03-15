@@ -213,4 +213,119 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         beneficiaries.sort((a, b) -> b.getTotalAmount().compareTo(a.getTotalAmount()));
         return beneficiaries.stream().limit(5).collect(Collectors.toList());
     }
+
+    @Override
+    public SpendingAnalyticsResponse getDashboardAnalytics(String userId, LocalDate fromDate, LocalDate toDate) {
+        List<Account> userAccounts = accountRepository.findByUserId(userId);
+        if (userAccounts.isEmpty()) {
+            return SpendingAnalyticsResponse.builder()
+                    .totalIncome(BigDecimal.ZERO)
+                    .totalExpense(BigDecimal.ZERO)
+                    .netChange(BigDecimal.ZERO)
+                    .totalTransactions(0)
+                    .averageTransactionAmount(BigDecimal.ZERO)
+                    .monthlySummaries(Collections.emptyList())
+                    .categoryBreakdown(Collections.emptyList())
+                    .topBeneficiaries(Collections.emptyList())
+                    .build();
+        }
+
+        // Aggregate analytics from all accounts
+        BigDecimal totalIncome = BigDecimal.ZERO;
+        BigDecimal totalExpense = BigDecimal.ZERO;
+        long totalTransactions = 0;
+
+        Map<String, MonthlySummary> mergedMonthly = new LinkedHashMap<>();
+        Map<String, BigDecimal[]> mergedCategories = new LinkedHashMap<>(); // [amount, count]
+        Map<String, BigDecimal[]> mergedBeneficiaries = new LinkedHashMap<>();
+
+        for (Account account : userAccounts) {
+            SpendingAnalyticsResponse acctAnalytics = getSpendingAnalytics(
+                    account.getId(), userId, fromDate, toDate);
+
+            totalIncome = totalIncome.add(acctAnalytics.getTotalIncome());
+            totalExpense = totalExpense.add(acctAnalytics.getTotalExpense());
+            totalTransactions += acctAnalytics.getTotalTransactions();
+
+            // Merge monthly
+            for (MonthlySummary ms : acctAnalytics.getMonthlySummaries()) {
+                String key = ms.getYear() + "-" + ms.getMonth();
+                mergedMonthly.merge(key, ms, (existing, incoming) -> MonthlySummary.builder()
+                        .year(existing.getYear())
+                        .month(existing.getMonth())
+                        .monthName(existing.getMonthName())
+                        .totalIncome(existing.getTotalIncome().add(incoming.getTotalIncome()))
+                        .totalExpense(existing.getTotalExpense().add(incoming.getTotalExpense()))
+                        .netChange(existing.getTotalIncome().add(incoming.getTotalIncome())
+                                .subtract(existing.getTotalExpense().add(incoming.getTotalExpense())))
+                        .transactionCount(existing.getTransactionCount() + incoming.getTransactionCount())
+                        .build());
+            }
+
+            // Merge categories
+            for (CategorySummary cs : acctAnalytics.getCategoryBreakdown()) {
+                mergedCategories.merge(cs.getCategory(),
+                        new BigDecimal[]{cs.getTotalAmount(), BigDecimal.valueOf(cs.getTransactionCount())},
+                        (a, b) -> new BigDecimal[]{a[0].add(b[0]), a[1].add(b[1])});
+            }
+
+            // Merge beneficiaries
+            for (TopBeneficiarySummary tb : acctAnalytics.getTopBeneficiaries()) {
+                mergedBeneficiaries.merge(tb.getAccountNumber(),
+                        new BigDecimal[]{tb.getTotalAmount(), BigDecimal.valueOf(tb.getTransferCount())},
+                        (a, b) -> new BigDecimal[]{a[0].add(b[0]), a[1].add(b[1])});
+            }
+        }
+
+        BigDecimal netChange = totalIncome.subtract(totalExpense);
+        BigDecimal avgAmount = totalTransactions > 0
+                ? totalIncome.add(totalExpense).divide(BigDecimal.valueOf(totalTransactions), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        // Build final monthly summaries
+        List<MonthlySummary> monthlySummaries = new ArrayList<>(mergedMonthly.values());
+        monthlySummaries.sort(Comparator.comparingInt(MonthlySummary::getYear)
+                .thenComparingInt(MonthlySummary::getMonth));
+
+        // Build final category breakdown with recalculated percentages
+        BigDecimal totalCatExpense = mergedCategories.values().stream()
+                .map(a -> a[0]).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        List<CategorySummary> categoryBreakdown = mergedCategories.entrySet().stream()
+                .map(e -> CategorySummary.builder()
+                        .category(e.getKey())
+                        .totalAmount(e.getValue()[0])
+                        .transactionCount(e.getValue()[1].intValue())
+                        .percentage(totalCatExpense.compareTo(BigDecimal.ZERO) > 0
+                                ? e.getValue()[0].multiply(BigDecimal.valueOf(100))
+                                    .divide(totalCatExpense, 1, RoundingMode.HALF_UP).doubleValue()
+                                : 0)
+                        .build())
+                .sorted((a, b) -> b.getTotalAmount().compareTo(a.getTotalAmount()))
+                .collect(Collectors.toList());
+
+        // Build final top beneficiaries
+        List<TopBeneficiarySummary> topBeneficiaries = mergedBeneficiaries.entrySet().stream()
+                .map(e -> TopBeneficiarySummary.builder()
+                        .accountNumber(e.getKey())
+                        .totalAmount(e.getValue()[0])
+                        .transferCount(e.getValue()[1].intValue())
+                        .build())
+                .sorted((a, b) -> b.getTotalAmount().compareTo(a.getTotalAmount()))
+                .limit(5)
+                .collect(Collectors.toList());
+
+        return SpendingAnalyticsResponse.builder()
+                .accountId("ALL")
+                .accountNumber("Tất cả tài khoản")
+                .totalIncome(totalIncome)
+                .totalExpense(totalExpense)
+                .netChange(netChange)
+                .totalTransactions(totalTransactions)
+                .averageTransactionAmount(avgAmount)
+                .monthlySummaries(monthlySummaries)
+                .categoryBreakdown(categoryBreakdown)
+                .topBeneficiaries(topBeneficiaries)
+                .build();
+    }
 }

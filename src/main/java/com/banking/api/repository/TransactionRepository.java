@@ -37,4 +37,39 @@ public interface TransactionRepository extends JpaRepository<Transaction, String
                                                    Pageable pageable);
 
     long countBySourceAccountIdAndStatus(String accountId, TransactionStatus status);
+
+    // ============ Analytics Queries ============
+
+    /** Monthly summary: total amount grouped by type and month */
+    @Query("SELECT FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM') as month, t.type, SUM(t.amount), COUNT(t) " +
+           "FROM Transaction t WHERE (t.sourceAccount.id IN :accountIds OR t.destinationAccount.id IN :accountIds) " +
+           "AND t.status = 'COMPLETED' AND t.createdAt >= :since " +
+           "GROUP BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM'), t.type " +
+           "ORDER BY month")
+    java.util.List<Object[]> getMonthlySummary(@Param("accountIds") java.util.List<String> accountIds,
+                                               @Param("since") LocalDateTime since);
+
+    /** Category breakdown: total amount per category */
+    @Query("SELECT t.category, SUM(t.amount), COUNT(t) " +
+           "FROM Transaction t WHERE t.sourceAccount.id IN :accountIds " +
+           "AND t.status = 'COMPLETED' AND t.createdAt >= :since " +
+           "GROUP BY t.category ORDER BY SUM(t.amount) DESC")
+    java.util.List<Object[]> getCategoryBreakdown(@Param("accountIds") java.util.List<String> accountIds,
+                                                   @Param("since") LocalDateTime since);
+
+    /** Daily volume for last N days */
+    @Query("SELECT FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM-DD') as day, COUNT(t), SUM(t.amount) " +
+           "FROM Transaction t WHERE (t.sourceAccount.id IN :accountIds OR t.destinationAccount.id IN :accountIds) " +
+           "AND t.status = 'COMPLETED' AND t.createdAt >= :since " +
+           "GROUP BY FUNCTION('TO_CHAR', t.createdAt, 'YYYY-MM-DD') ORDER BY day")
+    java.util.List<Object[]> getDailyVolume(@Param("accountIds") java.util.List<String> accountIds,
+                                             @Param("since") LocalDateTime since);
+
+    /** Total income (deposit + received transfers) and expenses (sent transfers) */
+    @Query("SELECT t.type, SUM(t.amount) FROM Transaction t " +
+           "WHERE (t.sourceAccount.id IN :accountIds OR t.destinationAccount.id IN :accountIds) " +
+           "AND t.status = 'COMPLETED' AND t.createdAt >= :since " +
+           "GROUP BY t.type")
+    java.util.List<Object[]> getAmountByType(@Param("accountIds") java.util.List<String> accountIds,
+                                              @Param("since") LocalDateTime since);
 }
