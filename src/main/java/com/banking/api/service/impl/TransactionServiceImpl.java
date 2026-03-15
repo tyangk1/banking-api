@@ -15,6 +15,7 @@ import com.banking.api.model.enums.TransactionType;
 import com.banking.api.repository.AccountRepository;
 import com.banking.api.repository.TransactionRepository;
 import com.banking.api.service.TransactionService;
+import com.banking.api.service.TransactionLimitService;
 import com.banking.api.messaging.EventPublisher;
 import com.banking.api.model.event.TransactionEvent;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final EventPublisher eventPublisher;
+    private final TransactionLimitService transactionLimitService;
 
     @Override
     @Transactional
@@ -75,6 +77,12 @@ public class TransactionServiceImpl implements TransactionService {
             throw new InsufficientBalanceException(
                     sourceAccount.getAccountNumber(), request.getAmount(), sourceAccount.getBalance());
         }
+
+        // Validate transaction limits (may throw if exceeded + creates approval request)
+        transactionLimitService.validateAndRecordUsage(
+                sourceAccount.getId(), request.getAmount(), userId,
+                request.getDestinationAccountNumber(), sourceAccount.getCurrency(),
+                request.getDescription());
 
         // Execute transfer
         sourceAccount.setBalance(sourceAccount.getBalance().subtract(request.getAmount()));
