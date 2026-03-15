@@ -123,6 +123,9 @@
                 <a href="#" class="nav-item" onclick="showPage('beneficiary-page')" data-page="beneficiary-page">
                     <span class="material-icons-outlined">contacts</span>Danh bạ
                 </a>
+                <a href="#" class="nav-item" onclick="showPage('chatbot-page')" data-page="chatbot-page">
+                    <span class="material-icons-outlined">smart_toy</span>AI Advisor
+                </a>
             </nav>
             <div class="sidebar-user">
                 <div class="user-avatar" id="sidebar-avatar">NA</div>
@@ -575,6 +578,49 @@
         </main>
     </div>
 
+    <!-- ==================== AI CHATBOT PAGE ==================== -->
+    <div id="chatbot-page" class="page app-page">
+        <aside class="sidebar"><!-- cloned via JS --></aside>
+        <main class="main-content">
+            <header class="top-header">
+                <h1><span class="material-icons-outlined">smart_toy</span> AI Financial Advisor</h1>
+            </header>
+            <div class="chat-container">
+                <div class="chat-quick-actions">
+                    <button class="chat-quick-btn" onclick="sendQuickChat('Phân tích chi tiêu tháng này cho tôi')">
+                        <span class="material-icons-outlined">analytics</span> Phân tích chi tiêu
+                    </button>
+                    <button class="chat-quick-btn" onclick="sendQuickChat('Cho tôi lời khuyên tiết kiệm dựa trên chi tiêu hiện tại')">
+                        <span class="material-icons-outlined">savings</span> Gợi ý tiết kiệm
+                    </button>
+                    <button class="chat-quick-btn" onclick="sendQuickChat('Tư vấn đầu tư cơ bản cho người mới')">
+                        <span class="material-icons-outlined">trending_up</span> Tư vấn đầu tư
+                    </button>
+                    <button class="chat-quick-btn" onclick="sendQuickChat('Có giao dịch nào bất thường trong tháng này không?')">
+                        <span class="material-icons-outlined">warning</span> Phát hiện bất thường
+                    </button>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-msg bot">
+                        <div class="chat-avatar"><span class="material-icons-outlined">smart_toy</span></div>
+                        <div class="chat-bubble">
+                            Xin chào! 👋 Tôi là <strong>AI Financial Advisor</strong> — trợ lý tài chính thông minh của bạn.<br><br>
+                            Tôi có thể giúp bạn:<br>
+                            📊 Phân tích chi tiêu &nbsp;|&nbsp; 💡 Gợi ý tiết kiệm<br>
+                            📈 Tư vấn đầu tư &nbsp;|&nbsp; 🔍 Phát hiện bất thường<br><br>
+                            Hãy hỏi tôi bất cứ điều gì!
+                        </div>
+                    </div>
+                </div>
+                <form class="chat-input-form" id="chat-form" onsubmit="handleChatSubmit(event)">
+                    <input type="text" id="chat-input" placeholder="Hỏi về tài chính của bạn..." autocomplete="off" required>
+                    <button type="submit" class="chat-send-btn" id="chat-send-btn">
+                        <span class="material-icons-outlined">send</span>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
 
     <!-- ==================== NOTIFICATION TOAST ==================== -->
     <div class="toast-container" id="toast-container"></div>
