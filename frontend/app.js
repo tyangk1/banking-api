@@ -459,6 +459,7 @@ function showPage(pageId) {
         if (pageId === 'transfer-page') { populateSourceAccounts(); resetTransfer(); }
         if (pageId === 'history-page') { populateFilterAccounts(); loadHistory(); }
         if (pageId === 'analytics-page') { loadAnalytics(); }
+        if (pageId === 'recurring-page') { populateRecurringAccounts(); loadRecurring(); }
     }
 }
 
@@ -497,6 +498,144 @@ async function apiGet(path) {
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.message || `HTTP ${res.status}`);
     return data;
+}
+
+// ============ RECURRING TRANSFERS ============
+function populateRecurringAccounts() {
+    const sel = document.getElementById('rc-source');
+    if (!sel) return;
+    sel.innerHTML = accounts.map(a =>
+        `<option value="${a.id}">${a.accountNumber} — ${formatCurrency(a.balance)} VND</option>`
+    ).join('');
+}
+
+function toggleDayFields() {
+    const freq = document.getElementById('rc-frequency').value;
+    document.getElementById('rc-dow-group').style.display = freq === 'WEEKLY' ? '' : 'none';
+    document.getElementById('rc-dom-group').style.display = freq === 'MONTHLY' ? '' : 'none';
+}
+
+async function loadRecurring() {
+    try {
+        const data = await apiGet('/v1/recurring-transfers');
+        const list = data.data;
+        const container = document.getElementById('recurring-list');
+
+        if (!list || !list.length) {
+            container.innerHTML = '<p class="empty-state">Chưa có lịch chuyển tiền tự động</p>';
+            return;
+        }
+
+        const freqLabels = { DAILY: 'Hàng ngày', WEEKLY: 'Hàng tuần', MONTHLY: 'Hàng tháng' };
+        const statusColors = { ACTIVE: '#22c55e', PAUSED: '#f59e0b', COMPLETED: '#6366f1', CANCELLED: '#ef4444' };
+        const dowLabels = { 1:'T2', 2:'T3', 3:'T4', 4:'T5', 5:'T6', 6:'T7', 7:'CN' };
+
+        container.innerHTML = list.map(r => {
+            let scheduleText = freqLabels[r.frequency];
+            if (r.frequency === 'WEEKLY') scheduleText += ` (${dowLabels[r.dayOfWeek] || ''})`;
+            if (r.frequency === 'MONTHLY') scheduleText += ` (ngày ${r.dayOfMonth})`;
+
+            const nextDate = r.nextExecution ? new Date(r.nextExecution).toLocaleDateString('vi-VN') : '—';
+            const actions = r.status === 'ACTIVE'
+                ? `<button class="btn-sm btn-warning" onclick="pauseRecurring('${r.id}')">⏸ Tạm dừng</button>
+                   <button class="btn-sm btn-danger" onclick="cancelRecurring('${r.id}')">✕ Huỷ</button>`
+                : r.status === 'PAUSED'
+                ? `<button class="btn-sm btn-success" onclick="resumeRecurring('${r.id}')">▶ Tiếp tục</button>
+                   <button class="btn-sm btn-danger" onclick="cancelRecurring('${r.id}')">✕ Huỷ</button>`
+                : '';
+
+            return `
+            <div class="tx-item" style="flex-direction:column;align-items:stretch;gap:10px;">
+                <div style="display:flex;align-items:center;gap:14px;">
+                    <div class="tx-icon" style="background:${statusColors[r.status]}22;color:${statusColors[r.status]}">
+                        <span class="material-icons-outlined">schedule_send</span>
+                    </div>
+                    <div style="flex:1">
+                        <div style="font-weight:600;font-size:14px">${r.sourceAccountNumber} → ${r.destinationAccountNumber}</div>
+                        <div style="font-size:12px;color:var(--text-muted)">${scheduleText} · Kế tiếp: ${nextDate} · Đã thực hiện: ${r.executionCount} lần</div>
+                        ${r.lastError ? `<div style="font-size:11px;color:#ef4444;margin-top:2px">⚠ ${r.lastError}</div>` : ''}
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-weight:700;color:var(--accent-blue)">${formatCurrency(r.amount)} VND</div>
+                        <span style="font-size:11px;padding:2px 8px;border-radius:12px;background:${statusColors[r.status]}22;color:${statusColors[r.status]}">${r.status}</span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end">${actions}</div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Failed to load recurring transfers:', err);
+    }
+}
+
+async function createRecurring(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('rc-error');
+    errorDiv.classList.add('hidden');
+
+    const freq = document.getElementById('rc-frequency').value;
+    const body = {
+        sourceAccountId: document.getElementById('rc-source').value,
+        destinationAccountNumber: document.getElementById('rc-dest').value,
+        amount: parseFloat(document.getElementById('rc-amount').value),
+        frequency: freq,
+        description: document.getElementById('rc-desc').value || null,
+    };
+    if (freq === 'WEEKLY') body.dayOfWeek = parseInt(document.getElementById('rc-dow').value);
+    if (freq === 'MONTHLY') body.dayOfMonth = parseInt(document.getElementById('rc-dom').value);
+
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const res = await fetch(`${API_BASE}/v1/recurring-transfers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Failed');
+
+        showToast('✅ Đã tạo lịch chuyển tiền tự động!', 'success');
+        document.getElementById('recurring-form').reset();
+        toggleDayFields();
+        loadRecurring();
+    } catch (err) {
+        errorDiv.textContent = err.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+async function pauseRecurring(id) {
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        await fetch(`${API_BASE}/v1/recurring-transfers/${id}/pause`, {
+            method: 'PATCH', headers: { 'Authorization': `Bearer ${token}` }
+        });
+        showToast('⏸ Đã tạm dừng lịch chuyển tiền', 'success');
+        loadRecurring();
+    } catch (err) { showToast('Lỗi: ' + err.message, 'error'); }
+}
+
+async function resumeRecurring(id) {
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        await fetch(`${API_BASE}/v1/recurring-transfers/${id}/resume`, {
+            method: 'PATCH', headers: { 'Authorization': `Bearer ${token}` }
+        });
+        showToast('▶ Đã kích hoạt lại lịch chuyển tiền', 'success');
+        loadRecurring();
+    } catch (err) { showToast('Lỗi: ' + err.message, 'error'); }
+}
+
+async function cancelRecurring(id) {
+    if (!confirm('Bạn chắc chắn muốn huỷ lịch chuyển tiền này?')) return;
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        await fetch(`${API_BASE}/v1/recurring-transfers/${id}`, {
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+        });
+        showToast('✕ Đã huỷ lịch chuyển tiền', 'success');
+        loadRecurring();
+    } catch (err) { showToast('Lỗi: ' + err.message, 'error'); }
 }
 
 // ============ PDF STATEMENT DOWNLOAD ============

@@ -117,6 +117,9 @@
                 <a href="#" class="nav-item" onclick="showPage('analytics-page')" data-page="analytics-page">
                     <span class="material-icons-outlined">insights</span>Phân tích
                 </a>
+                <a href="#" class="nav-item" onclick="showPage('recurring-page')" data-page="recurring-page">
+                    <span class="material-icons-outlined">schedule_send</span>Lịch CK
+                </a>
             </nav>
             <div class="sidebar-user">
                 <div class="user-avatar" id="sidebar-avatar">NA</div>
@@ -414,6 +417,85 @@
                 <div class="card-header"><h2>Top người nhận chuyển khoản</h2></div>
                 <div id="top-beneficiaries" class="tx-list">
                     <p class="empty-state">Chưa có dữ liệu</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== RECURRING TRANSFERS PAGE ==================== -->
+    <div id="recurring-page" class="page app-page">
+        <aside class="sidebar"><!-- cloned via JS --></aside>
+        <main class="main-content">
+            <header class="top-header">
+                <h1>🔄 Lịch chuyển tiền tự động</h1>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="loadRecurring()" title="Tải lại"><span class="material-icons-outlined">refresh</span></button>
+                </div>
+            </header>
+
+            <div class="content-grid">
+                <!-- Create Form -->
+                <div class="card">
+                    <div class="card-header"><h2><span class="material-icons-outlined">add_circle</span> Tạo lịch mới</h2></div>
+                    <form id="recurring-form" onsubmit="createRecurring(event)">
+                        <div class="input-group">
+                            <label>Tài khoản nguồn</label>
+                            <select id="rc-source" required></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Số TK người nhận</label>
+                            <div class="input-with-icon">
+                                <span class="material-icons-outlined input-icon">person</span>
+                                <input type="text" id="rc-dest" placeholder="VD: 9786654717" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Số tiền (VND)</label>
+                            <div class="input-with-icon">
+                                <span class="material-icons-outlined input-icon">payments</span>
+                                <input type="number" id="rc-amount" placeholder="0" min="1000" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Tần suất</label>
+                            <select id="rc-frequency" required onchange="toggleDayFields()">
+                                <option value="DAILY">Hàng ngày</option>
+                                <option value="WEEKLY">Hàng tuần</option>
+                                <option value="MONTHLY" selected>Hàng tháng</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="rc-dow-group" style="display:none">
+                            <label>Thứ trong tuần</label>
+                            <select id="rc-dow">
+                                <option value="1">Thứ 2</option><option value="2">Thứ 3</option>
+                                <option value="3">Thứ 4</option><option value="4">Thứ 5</option>
+                                <option value="5">Thứ 6</option><option value="6">Thứ 7</option>
+                                <option value="7">Chủ nhật</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="rc-dom-group">
+                            <label>Ngày trong tháng (1-28)</label>
+                            <input type="number" id="rc-dom" min="1" max="28" value="1">
+                        </div>
+                        <div class="input-group">
+                            <label>Nội dung</label>
+                            <textarea id="rc-desc" placeholder="VD: Tiền nhà tháng 3..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary" id="rc-submit-btn">
+                            <span class="material-icons-outlined">schedule_send</span>
+                            <span class="btn-text">Tạo lịch chuyển tiền</span>
+                            <span class="btn-loader hidden"></span>
+                        </button>
+                        <div id="rc-error" class="error-message hidden"></div>
+                    </form>
+                </div>
+
+                <!-- Existing Schedules -->
+                <div class="card">
+                    <div class="card-header"><h2><span class="material-icons-outlined">list_alt</span> Lịch hiện tại</h2></div>
+                    <div id="recurring-list" class="tx-list">
+                        <p class="empty-state">Chưa có lịch chuyển tiền</p>
+                    </div>
                 </div>
             </div>
         </main>

@@ -5,6 +5,7 @@ import com.banking.api.model.enums.AccountStatus;
 import com.banking.api.model.enums.AccountType;
 import com.banking.api.repository.AccountRepository;
 import com.banking.api.repository.TransactionRepository;
+import com.banking.api.service.RecurringTransferService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,6 +24,7 @@ import java.util.List;
  *  1. Daily interest calculation for SAVINGS accounts (midnight)
  *  2. Daily transaction summary report (6 AM)
  *  3. Dormant account detection (weekly, Sunday midnight)
+ *  4. Recurring transfers execution (every hour)
  */
 @Component
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class BankingScheduler {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final RecurringTransferService recurringTransferService;
 
     // Annual interest rate for savings accounts (5.5%)
     private static final BigDecimal ANNUAL_INTEREST_RATE = new BigDecimal("0.055");
@@ -136,5 +139,16 @@ public class BankingScheduler {
         }
 
         log.info("😴 [SCHEDULER] Dormant check complete: {} accounts marked dormant", dormantCount);
+    }
+
+    /**
+     * Execute due recurring transfers.
+     * Runs every hour at minute 0.
+     */
+    @Scheduled(cron = "0 0 * * * ?")
+    public void executeRecurringTransfers() {
+        log.info("🔄 [SCHEDULER] Checking for due recurring transfers...");
+        int executed = recurringTransferService.executeDueTransfers();
+        log.info("🔄 [SCHEDULER] Recurring transfers complete: {} executed", executed);
     }
 }
