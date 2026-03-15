@@ -25,6 +25,20 @@ public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
 
+    @GetMapping("/dashboard")
+    @Operation(summary = "Get dashboard analytics",
+               description = "Aggregated analytics across ALL user accounts: income, expenses, monthly trends, categories")
+    public ResponseEntity<ApiResponse<SpendingAnalyticsResponse>> getDashboardAnalytics(
+            @Parameter(description = "Start date (yyyy-MM-dd), default: 6 months ago")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @Parameter(description = "End date (yyyy-MM-dd), default: today")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        SpendingAnalyticsResponse analytics = analyticsService.getDashboardAnalytics(
+                principal.getId(), fromDate, toDate);
+        return ResponseEntity.ok(ApiResponse.success(analytics));
+    }
+
     @GetMapping("/spending/{accountId}")
     @Operation(summary = "Get spending analytics",
                description = "Dashboard data: monthly summaries, category breakdown, top beneficiaries")
