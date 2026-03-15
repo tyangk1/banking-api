@@ -120,6 +120,9 @@
                 <a href="#" class="nav-item" onclick="showPage('recurring-page')" data-page="recurring-page">
                     <span class="material-icons-outlined">schedule_send</span>Lịch CK
                 </a>
+                <a href="#" class="nav-item" onclick="showPage('beneficiary-page')" data-page="beneficiary-page">
+                    <span class="material-icons-outlined">contacts</span>Danh bạ
+                </a>
             </nav>
             <div class="sidebar-user">
                 <div class="user-avatar" id="sidebar-avatar">NA</div>
@@ -495,6 +498,70 @@
                     <div class="card-header"><h2><span class="material-icons-outlined">list_alt</span> Lịch hiện tại</h2></div>
                     <div id="recurring-list" class="tx-list">
                         <p class="empty-state">Chưa có lịch chuyển tiền</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== BENEFICIARY PAGE ==================== -->
+    <div id="beneficiary-page" class="page app-page">
+        <aside class="sidebar"><!-- cloned via JS --></aside>
+        <main class="main-content">
+            <header class="top-header">
+                <h1>📇 Danh bạ chuyển khoản</h1>
+                <div class="header-actions">
+                    <div class="input-with-icon" style="width:240px">
+                        <span class="material-icons-outlined input-icon">search</span>
+                        <input type="text" id="ben-search" placeholder="Tìm theo tên, STK..." oninput="searchBeneficiaries()">
+                    </div>
+                    <button class="icon-btn" onclick="loadBeneficiaries()" title="Tải lại"><span class="material-icons-outlined">refresh</span></button>
+                </div>
+            </header>
+
+            <div class="content-grid">
+                <!-- Add Beneficiary Form -->
+                <div class="card">
+                    <div class="card-header"><h2><span class="material-icons-outlined">person_add</span> Thêm người nhận mới</h2></div>
+                    <form id="ben-form" onsubmit="createBeneficiary(event)">
+                        <div class="input-group">
+                            <label>Biệt danh</label>
+                            <div class="input-with-icon">
+                                <span class="material-icons-outlined input-icon">badge</span>
+                                <input type="text" id="ben-nickname" placeholder="VD: Chủ nhà, Mẹ..." required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Số tài khoản</label>
+                            <div class="input-with-icon">
+                                <span class="material-icons-outlined input-icon">account_balance</span>
+                                <input type="text" id="ben-account" placeholder="VD: 9786654717" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Tên chủ tài khoản</label>
+                            <div class="input-with-icon">
+                                <span class="material-icons-outlined input-icon">person</span>
+                                <input type="text" id="ben-holder" placeholder="VD: Nguyễn Văn A" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary" id="ben-submit-btn">
+                            <span class="material-icons-outlined">person_add</span>
+                            <span class="btn-text">Lưu người nhận</span>
+                            <span class="btn-loader hidden"></span>
+                        </button>
+                        <div id="ben-error" class="error-message hidden"></div>
+                    </form>
+                </div>
+
+                <!-- Beneficiary List -->
+                <div class="card" style="grid-column: span 1">
+                    <div class="card-header"><h2><span class="material-icons-outlined">group</span> Danh sách (<span id="ben-count">0</span>)</h2></div>
+                    <!-- Favorites -->
+                    <div id="ben-favorites" style="margin-bottom:16px"></div>
+                    <!-- All -->
+                    <div id="ben-list" class="tx-list">
+                        <p class="empty-state">Chưa có người nhận nào</p>
                     </div>
                 </div>
             </div>
