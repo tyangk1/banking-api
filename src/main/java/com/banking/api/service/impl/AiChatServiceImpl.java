@@ -10,20 +10,20 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
-import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class AiChatServiceImpl implements AiChatService {
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
     private final AccountService accountService;
     private final TransactionService transactionService;
 
@@ -36,14 +36,9 @@ public class AiChatServiceImpl implements AiChatService {
     public AiChatServiceImpl(AccountService accountService, TransactionService transactionService) {
         this.accountService = accountService;
         this.transactionService = transactionService;
-        this.restTemplate = new RestTemplate();
-    }
-
-    @PostConstruct
-    public void init() {
-        log.info("🤖 AI Chat Service initialized. Gemini API key configured: {}, model: {}",
-                geminiApiKey != null && !geminiApiKey.isBlank() ? "YES (length=" + geminiApiKey.length() + ")" : "NO",
-                geminiModel);
+        this.webClient = WebClient.builder()
+                .baseUrl("https://generativelanguage.googleapis.com")
+                .build();
     }
 
     private static final String SYSTEM_PROMPT = """
@@ -67,20 +62,18 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public String chat(String userId, String message, List<Map<String, String>> conversationHistory) {
-        log.info("🤖 Chat request. Key present: {}, Key length: {}",
-                geminiApiKey != null && !geminiApiKey.isBlank(),
-                geminiApiKey != null ? geminiApiKey.length() : 0);
-
         if (geminiApiKey == null || geminiApiKey.isBlank()) {
-            log.warn("Gemini API key is empty, using fallback");
             return fallbackResponse(message);
         }
 
         try {
+            // Build financial context from user data
             String financialContext = buildFinancialContext(userId);
 
+            // Build Gemini API request
             List<Map<String, Object>> contents = new ArrayList<>();
 
+            // System instruction as first user message
             contents.add(Map.of(
                     "role", "user",
                     "parts", List.of(Map.of("text", SYSTEM_PROMPT + "\n\nDỮ LIỆU TÀI CHÍNH CỦA KHÁCH HÀNG:\n" + financialContext))
@@ -90,6 +83,7 @@ public class AiChatServiceImpl implements AiChatService {
                     "parts", List.of(Map.of("text", "Tôi đã nhận được dữ liệu tài chính của bạn. Tôi sẵn sàng phân tích và tư vấn. Bạn cần hỗ trợ gì?"))
             ));
 
+            // Add conversation history
             if (conversationHistory != null) {
                 for (Map<String, String> msg : conversationHistory) {
                     contents.add(Map.of(
@@ -99,46 +93,35 @@ public class AiChatServiceImpl implements AiChatService {
                 }
             }
 
+            // Add current message
             contents.add(Map.of(
                     "role", "user",
                     "parts", List.of(Map.of("text", message))
             ));
 
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("contents", contents);
-            requestBody.put("generationConfig", Map.of(
-                    "temperature", 0.7,
-                    "maxOutputTokens", 1024,
-                    "topP", 0.9
-            ));
+            Map<String, Object> requestBody = Map.of(
+                    "contents", contents,
+                    "generationConfig", Map.of(
+                            "temperature", 0.7,
+                            "maxOutputTokens", 1024,
+                            "topP", 0.9
+                    )
+            );
 
-            String url = String.format(
-                    "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s",
-                    geminiModel, geminiApiKey);
-
-            log.info("🤖 Calling Gemini API via RestTemplate, model={}", geminiModel);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
+            // Call Gemini API
             @SuppressWarnings("unchecked")
-            ResponseEntity<Map> responseEntity = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+            Map<String, Object> response = webClient.post()
+                    .uri("/v1beta/models/{model}:generateContent?key={key}", geminiModel, geminiApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
 
-            log.info("🤖 Gemini API response status: {}", responseEntity.getStatusCode());
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = responseEntity.getBody();
             return extractResponseText(response);
 
-        } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.error("🔴 Gemini API HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-            if (e.getStatusCode().value() == 429) {
-                return "⏳ **Quá tải yêu cầu**\n\nHệ thống AI đang bận, vui lòng thử lại sau 1 phút.\n\n💡 Trong khi đợi, bạn có thể xem mục **Phân tích** ở sidebar để xem thống kê chi tiêu.";
-            }
-            return "❌ **Lỗi kết nối AI**\n\nKhông thể kết nối đến AI engine. Mã lỗi: " + e.getStatusCode().value() + "\n\nVui lòng thử lại sau.";
         } catch (Exception e) {
-            log.error("🔴 Gemini API call FAILED: {} - {}", e.getClass().getSimpleName(), e.getMessage());
+            log.error("Gemini API call failed", e);
             return fallbackResponse(message);
         }
     }
@@ -150,7 +133,9 @@ public class AiChatServiceImpl implements AiChatService {
 
     private String buildFinancialContext(String userId) {
         StringBuilder ctx = new StringBuilder();
+
         try {
+            // 1. Account summary
             List<AccountResponse> accs = accountService.getAccountsByUserId(userId);
             BigDecimal totalBalance = BigDecimal.ZERO;
             ctx.append("📊 TÀI KHOẢN:\n");
@@ -164,6 +149,7 @@ public class AiChatServiceImpl implements AiChatService {
             }
             ctx.append(String.format("  → Tổng số dư: %s VND\n\n", formatCurrency(totalBalance)));
 
+            // 2. Recent transactions (last 30 days, up to 50)
             if (!accs.isEmpty()) {
                 ctx.append("📋 GIAO DỊCH 30 NGÀY GẦN NHẤT:\n");
                 int txCount = 0;
@@ -206,16 +192,19 @@ public class AiChatServiceImpl implements AiChatService {
                             .forEach(e -> ctx.append(String.format("    • %s: %s VND\n", e.getKey(), formatCurrency(e.getValue()))));
                 }
             }
+
         } catch (Exception e) {
             ctx.append("(Không thể tải dữ liệu giao dịch)\n");
             log.warn("Failed to build financial context for user: {}", userId, e);
         }
+
         return ctx.toString();
     }
 
     @SuppressWarnings("unchecked")
     private String extractResponseText(Map<String, Object> response) {
         if (response == null) return "Xin lỗi, không nhận được phản hồi từ AI.";
+
         try {
             List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
             if (candidates != null && !candidates.isEmpty()) {
@@ -228,6 +217,7 @@ public class AiChatServiceImpl implements AiChatService {
         } catch (Exception e) {
             log.error("Failed to parse Gemini response", e);
         }
+
         return "Xin lỗi, đã xảy ra lỗi khi xử lý phản hồi.";
     }
 
