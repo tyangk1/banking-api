@@ -12,12 +12,14 @@ const USER_KEY = 'banking_user';
 let currentUser = null;
 let accounts = [];
 let transactions = [];
+let stompClient = null;
 
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', () => {
     initForms();
     checkAuth();
     initTransferForm();
+    initDepositForm();
 });
 
 // ============ AUTH ============
@@ -28,6 +30,7 @@ function checkAuth() {
         currentUser = JSON.parse(userStr);
         showPage('dashboard-page');
         loadDashboard();
+        connectWebSocket();
     } else {
         showPage('login-page');
     }
@@ -38,6 +41,7 @@ function initForms() {
     document.getElementById('register-form').addEventListener('submit', handleRegister);
     document.getElementById('transfer-form').addEventListener('submit', handleTransfer);
     document.getElementById('create-account-form').addEventListener('submit', handleCreateAccount);
+    document.getElementById('deposit-form').addEventListener('submit', handleDeposit);
 }
 
 async function handleLogin(e) {
@@ -61,6 +65,7 @@ async function handleLogin(e) {
         showToast('Đăng nhập thành công!', 'success');
         showPage('dashboard-page');
         loadDashboard();
+        connectWebSocket();
     } catch (err) {
         showError(errorEl, err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.');
     } finally {
@@ -173,10 +178,17 @@ function renderAccountCard(acc) {
 async function loadAccountTransactions() {
     if (!accounts.length) return;
     try {
-        const data = await apiGet(`/v1/transactions/account/${accounts[0].id}?size=5`);
-        transactions = data.data?.content || [];
+        // Load transactions from ALL accounts and merge
+        const allTxPromises = accounts.map(acc =>
+            apiGet(`/v1/transactions/account/${acc.id}?size=10`).catch(() => ({ data: { content: [] } }))
+        );
+        const results = await Promise.all(allTxPromises);
+        const allTx = results.flatMap(r => r.data?.content || []);
+        // Sort by date descending and take top 5
+        allTx.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        transactions = allTx.slice(0, 5);
         renderDashboardTransactions();
-        document.getElementById('recent-tx-count').textContent = transactions.length;
+        document.getElementById('recent-tx-count').textContent = allTx.length;
     } catch (err) {
         console.log('No transactions yet');
     }
@@ -188,20 +200,25 @@ function renderDashboardTransactions() {
         container.innerHTML = '<p class="empty-state">Chưa có giao dịch nào</p>';
         return;
     }
-    container.innerHTML = transactions.map(tx => `
+    container.innerHTML = transactions.map(tx => {
+        const isIncoming = isTxIncoming(tx);
+        const sign = isIncoming ? '+' : '-';
+        const cls = isIncoming ? 'positive' : 'negative';
+        return `
     <div class="tx-item">
         <div class="tx-icon ${tx.type.toLowerCase()}">
             <span class="material-icons-outlined">${getTxIcon(tx.type)}</span>
         </div>
         <div class="tx-details">
-            <div class="tx-type">${getTxLabel(tx.type)}</div>
+            <div class="tx-type">${isIncoming ? getTxLabelIncoming(tx.type) : getTxLabel(tx.type)}</div>
             <div class="tx-date">${formatDate(tx.createdAt)} · ${tx.referenceNumber}</div>
         </div>
-        <div class="tx-amount ${tx.type === 'DEPOSIT' ? 'positive' : 'negative'}">
-            ${tx.type === 'DEPOSIT' ? '+' : '-'}${formatCurrency(tx.amount)}
+        <div class="tx-amount ${cls}">
+            ${sign}${formatCurrency(tx.amount)}
         </div>
         <span class="tx-status-badge tx-status-${tx.status}">${tx.status}</span>
-    </div>`).join('');
+    </div>`;
+    }).join('');
 }
 
 // ============ ACCOUNTS ============
@@ -304,6 +321,61 @@ function resetTransfer() {
     populateSourceAccounts();
 }
 
+// ============ DEPOSIT ============
+function initDepositForm() {
+    const amountInput = document.getElementById('deposit-amount');
+    if (amountInput) {
+        amountInput.addEventListener('input', () => {
+            const amount = parseFloat(amountInput.value) || 0;
+            // Could add preview here
+        });
+    }
+}
+
+function populateDepositAccounts() {
+    const select = document.getElementById('deposit-account');
+    select.innerHTML = '<option value="">Ch\u1ECDn t\u00E0i kho\u1EA3n...</option>';
+    accounts.filter(a => a.status === 'ACTIVE').forEach(acc => {
+        select.innerHTML += `<option value="${acc.accountNumber}">${acc.accountNumber} \u2014 ${formatCurrency(acc.balance)} ${acc.currency}</option>`;
+    });
+}
+
+async function handleDeposit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('deposit-btn');
+    const errorEl = document.getElementById('deposit-error');
+    setLoading(btn, true);
+    hideError(errorEl);
+
+    try {
+        const data = await apiPost('/v1/transactions/deposit', {
+            accountNumber: document.getElementById('deposit-account').value,
+            amount: parseFloat(document.getElementById('deposit-amount').value),
+            description: document.getElementById('deposit-desc').value || 'N\u1EA1p ti\u1EC1n'
+        });
+
+        document.getElementById('deposit-form-card').classList.add('hidden');
+        const resultCard = document.getElementById('deposit-result');
+        resultCard.classList.remove('hidden');
+        document.getElementById('deposit-result-ref').textContent = `M\u00E3: ${data.data.referenceNumber}`;
+        document.getElementById('deposit-result-amount').textContent = formatCurrency(data.data.amount) + ' VND';
+
+        showToast('N\u1EA1p ti\u1EC1n th\u00E0nh c\u00F4ng!', 'success');
+        loadDashboard();
+    } catch (err) {
+        showError(errorEl, err.message || 'N\u1EA1p ti\u1EC1n th\u1EA5t b\u1EA1i');
+    } finally {
+        setLoading(btn, false);
+    }
+}
+
+function resetDeposit() {
+    document.getElementById('deposit-form-card').classList.remove('hidden');
+    document.getElementById('deposit-result').classList.add('hidden');
+    document.getElementById('deposit-form').reset();
+    populateDepositAccounts();
+}
+
 // ============ HISTORY ============
 function populateFilterAccounts() {
     const select = document.getElementById('filter-account');
@@ -317,12 +389,24 @@ async function loadHistory() {
     const accountId = document.getElementById('filter-account').value;
     if (!accountId && !accounts.length) return;
 
-    const targetId = accountId || (accounts[0]?.id);
-    if (!targetId) return;
-
     try {
-        const data = await apiGet(`/v1/transactions/account/${targetId}?size=50`);
-        const txList = data.data?.content || [];
+        let txList;
+        if (accountId) {
+            // Load for specific account
+            const data = await apiGet(`/v1/transactions/account/${accountId}?size=50`);
+            txList = data.data?.content || [];
+        } else {
+            // Load from ALL accounts
+            const allTxPromises = accounts.map(acc =>
+                apiGet(`/v1/transactions/account/${acc.id}?size=50`).catch(() => ({ data: { content: [] } }))
+            );
+            const results = await Promise.all(allTxPromises);
+            txList = results.flatMap(r => r.data?.content || []);
+            // Deduplicate by ID (in case same tx appears for both source & dest)
+            const seen = new Set();
+            txList = txList.filter(tx => { if (seen.has(tx.id)) return false; seen.add(tx.id); return true; });
+            txList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        }
         renderHistoryTable(txList);
     } catch (err) {
         console.error('Failed to load history:', err);
@@ -338,19 +422,24 @@ function renderHistoryTable(txList) {
         tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Không tìm thấy giao dịch</td></tr>';
         return;
     }
-    tbody.innerHTML = filtered.map(tx => `
+    tbody.innerHTML = filtered.map(tx => {
+        const isIncoming = isTxIncoming(tx);
+        const sign = isIncoming ? '+' : '-';
+        const color = isIncoming ? 'var(--accent-green)' : 'var(--accent-red)';
+        return `
     <tr>
         <td>${formatDate(tx.createdAt)}</td>
         <td style="font-family:monospace;font-size:12px;color:var(--text-secondary)">${tx.referenceNumber}</td>
         <td>
-            <span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:${tx.type === 'DEPOSIT' ? 'var(--accent-green)' : 'var(--accent-blue)'}">
-                ${getTxIcon(tx.type)}</span> ${getTxLabel(tx.type)}
+            <span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:${isIncoming ? 'var(--accent-green)' : 'var(--accent-blue)'}">
+                ${getTxIcon(tx.type)}</span> ${isIncoming ? getTxLabelIncoming(tx.type) : getTxLabel(tx.type)}
         </td>
-        <td class="${tx.type === 'DEPOSIT' ? 'positive' : 'negative'}" style="font-weight:600;color:${tx.type === 'DEPOSIT' ? 'var(--accent-green)' : 'var(--accent-red)'}">
-            ${tx.type === 'DEPOSIT' ? '+' : '-'}${formatCurrency(tx.amount)}
+        <td class="${isIncoming ? 'positive' : 'negative'}" style="font-weight:600;color:${color}">
+            ${sign}${formatCurrency(tx.amount)}
         </td>
         <td><span class="tx-status-badge tx-status-${tx.status}">${tx.status}</span></td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
 }
 
 // ============ PAGE NAVIGATION ============
@@ -366,8 +455,10 @@ function showPage(pageId) {
         // Load page-specific data
         if (pageId === 'dashboard-page') loadDashboard();
         if (pageId === 'accounts-page') renderAccountsPage();
+        if (pageId === 'deposit-page') { populateDepositAccounts(); resetDeposit(); }
         if (pageId === 'transfer-page') { populateSourceAccounts(); resetTransfer(); }
         if (pageId === 'history-page') { populateFilterAccounts(); loadHistory(); }
+        if (pageId === 'analytics-page') { loadAnalytics(); }
     }
 }
 
@@ -408,6 +499,226 @@ async function apiGet(path) {
     return data;
 }
 
+// ============ PDF STATEMENT DOWNLOAD ============
+async function downloadPdfStatement() {
+    const filterAccount = document.getElementById('filter-account');
+    let accountId = filterAccount ? filterAccount.value : '';
+
+    // If no specific account selected, use first account
+    if (!accountId && accounts.length > 0) {
+        accountId = accounts[0].id;
+    }
+
+    if (!accountId) {
+        showToast('Không tìm thấy tài khoản để xuất sao kê', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btn-download-pdf');
+    const btnText = btn.querySelector('.btn-text');
+    const originalText = btnText.textContent;
+    btnText.textContent = 'Đang tạo PDF...';
+    btn.disabled = true;
+
+    try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const res = await fetch(`${API_BASE}/v1/statements/${accountId}/pdf`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: 'Failed to generate PDF' }));
+            throw new Error(err.message);
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+
+        // Extract filename from Content-Disposition header
+        const disposition = res.headers.get('Content-Disposition');
+        let filename = 'statement.pdf';
+        if (disposition && disposition.includes('filename=')) {
+            filename = disposition.split('filename=')[1].replace(/"/g, '');
+        }
+
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        showToast('📄 Đã tải sao kê PDF thành công!', 'success');
+    } catch (err) {
+        console.error('PDF download failed:', err);
+        showToast('Không thể tạo PDF: ' + err.message, 'error');
+    } finally {
+        btnText.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+// ============ ANALYTICS ============
+let chartIncome = null;
+let chartCategory = null;
+
+async function loadAnalytics() {
+    try {
+        const data = await apiGet('/v1/analytics/dashboard');
+        const analytics = data.data;
+
+        // Update stats
+        document.getElementById('stat-income').textContent = formatCurrency(analytics.totalIncome);
+        document.getElementById('stat-expense').textContent = formatCurrency(analytics.totalExpense);
+        document.getElementById('stat-net').textContent = formatCurrency(analytics.netChange);
+        document.getElementById('stat-count').textContent = analytics.totalTransactions;
+
+        // Render charts
+        renderIncomeExpenseChart(analytics.monthlySummaries);
+        renderCategoryChart(analytics.categoryBreakdown);
+        renderTopBeneficiaries(analytics.topBeneficiaries);
+    } catch (err) {
+        console.error('Failed to load analytics:', err);
+    }
+}
+
+function renderIncomeExpenseChart(monthlySummaries) {
+    const ctx = document.getElementById('chart-income-expense');
+    if (!ctx) return;
+
+    if (chartIncome) chartIncome.destroy();
+
+    const labels = monthlySummaries.map(m => m.monthName || `T${m.month}`);
+    const incomeData = monthlySummaries.map(m => m.totalIncome);
+    const expenseData = monthlySummaries.map(m => m.totalExpense);
+
+    chartIncome = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Thu nhập',
+                    data: incomeData,
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderColor: '#22c55e',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.6,
+                },
+                {
+                    label: 'Chi tiêu',
+                    data: expenseData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.6,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#fff', font: { family: 'Inter' } } }
+            },
+            scales: {
+                x: { ticks: { color: 'rgba(255,255,255,0.6)', font: { family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: 'rgba(255,255,255,0.6)', font: { family: 'Inter' }, callback: v => formatCurrency(v) }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+}
+
+function renderCategoryChart(categories) {
+    const ctx = document.getElementById('chart-category');
+    if (!ctx) return;
+
+    if (chartCategory) chartCategory.destroy();
+
+    const categoryColors = [
+        '#3b82f6', '#8b5cf6', '#22c55e', '#ef4444', '#f59e0b',
+        '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
+    ];
+
+    const categoryLabels = {
+        OTHER: 'Khác', SALARY: 'Lương', RENT: 'Thuê nhà', SHOPPING: 'Mua sắm',
+        FOOD: 'Ăn uống', TRANSFER: 'Chuyển khoản', BILLS: 'Hoá đơn',
+        ENTERTAINMENT: 'Giải trí', HEALTH: 'Sức khoẻ', EDUCATION: 'Giáo dục'
+    };
+
+    chartCategory = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: categories.map(c => categoryLabels[c.category] || c.category),
+            datasets: [{
+                data: categories.map(c => c.totalAmount),
+                backgroundColor: categories.map((_, i) => categoryColors[i % categoryColors.length]),
+                borderColor: 'rgba(10, 22, 40, 0.8)',
+                borderWidth: 3,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: '#fff',
+                        font: { family: 'Inter', size: 12 },
+                        padding: 12,
+                        usePointStyle: true,
+                        pointStyleWidth: 10,
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const cat = categories[context.dataIndex];
+                            return ` ${formatCurrency(cat.totalAmount)} VND (${cat.percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderTopBeneficiaries(beneficiaries) {
+    const container = document.getElementById('top-beneficiaries');
+    if (!beneficiaries || !beneficiaries.length) {
+        container.innerHTML = '<p class="empty-state">Chưa có dữ liệu chuyển khoản</p>';
+        return;
+    }
+
+    const maxAmount = beneficiaries[0]?.totalAmount || 1;
+    container.innerHTML = beneficiaries.map((b, i) => {
+        const pct = (b.totalAmount / maxAmount * 100).toFixed(0);
+        const colors = ['#3b82f6', '#8b5cf6', '#22c55e', '#f59e0b', '#06b6d4'];
+        return `
+    <div class="tx-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+            <div class="tx-icon" style="background:${colors[i]}22;color:${colors[i]}">
+                <span class="material-icons-outlined">person</span>
+            </div>
+            <div style="flex:1">
+                <div style="font-weight:600;font-size:14px">${b.accountNumber}</div>
+                <div style="font-size:12px;color:var(--text-muted)">${b.transferCount} giao dịch</div>
+            </div>
+            <div style="font-weight:700;color:var(--accent-blue)">${formatCurrency(b.totalAmount)} VND</div>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${colors[i]};border-radius:3px;transition:width 0.5s"></div>
+        </div>
+    </div>`;
+    }).join('');
+}
+
 // ============ UTILITIES ============
 function formatCurrency(amount) {
     return new Intl.NumberFormat('vi-VN').format(amount || 0);
@@ -432,6 +743,20 @@ function getTxIcon(type) {
 function getTxLabel(type) {
     const labels = { DEPOSIT: 'Nạp tiền', TRANSFER: 'Chuyển khoản', WITHDRAWAL: 'Rút tiền', FEE: 'Phí', INTEREST: 'Lãi suất', REFUND: 'Hoàn tiền' };
     return labels[type] || type;
+}
+
+function getTxLabelIncoming(type) {
+    const labels = { DEPOSIT: 'Nạp tiền', TRANSFER: 'Nhận tiền', WITHDRAWAL: 'Rút tiền', FEE: 'Phí', INTEREST: 'Lãi suất', REFUND: 'Hoàn tiền' };
+    return labels[type] || type;
+}
+
+function isTxIncoming(tx) {
+    if (tx.type === 'DEPOSIT' || tx.type === 'INTEREST' || tx.type === 'REFUND') return true;
+    if (tx.type === 'WITHDRAWAL' || tx.type === 'FEE') return false;
+    // For TRANSFER: check if any of user's accounts is the destination
+    const myAccountNumbers = accounts.map(a => a.accountNumber);
+    if (tx.destinationAccountNumber && myAccountNumbers.includes(tx.destinationAccountNumber)) return true;
+    return false;
 }
 
 function setLoading(btn, loading) {
@@ -465,4 +790,99 @@ function showToast(message, type = 'info') {
     toast.innerHTML = `<span class="material-icons-outlined">${icon}</span>${message}`;
     container.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 300); }, 4000);
+}
+
+// ============ WEBSOCKET NOTIFICATIONS ============
+function connectWebSocket() {
+    if (stompClient && stompClient.connected) return;
+    if (typeof SockJS === 'undefined' || typeof Stomp === 'undefined') {
+        console.warn('SockJS/STOMP not loaded — skipping WebSocket');
+        return;
+    }
+
+    try {
+        const socket = new SockJS('http://localhost:8080/api/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null; // Suppress STOMP debug logs
+
+        stompClient.connect({}, function(frame) {
+            console.log('🔌 WebSocket connected:', frame);
+
+            // Subscribe to broadcast notifications
+            stompClient.subscribe('/topic/notifications', function(message) {
+                handleWsNotification(JSON.parse(message.body));
+            });
+
+            console.log('✅ Subscribed to /topic/notifications');
+        }, function(error) {
+            console.warn('WebSocket connection error:', error);
+            // Reconnect after 5 seconds
+            setTimeout(connectWebSocket, 5000);
+        });
+    } catch (e) {
+        console.warn('Failed to connect WebSocket:', e);
+    }
+}
+
+function disconnectWebSocket() {
+    if (stompClient && stompClient.connected) {
+        stompClient.disconnect(() => console.log('🔌 WebSocket disconnected'));
+        stompClient = null;
+    }
+}
+
+function handleWsNotification(notification) {
+    console.log('🔔 WS Notification:', notification);
+
+    // Only show if the notification is for the current user
+    if (notification.userId && currentUser) {
+        const isForMe = notification.userId === currentUser.email || notification.userId === currentUser.id;
+        if (!isForMe) return;
+    }
+
+    // Determine toast type
+    let toastType = 'info';
+    let icon = 'notifications';
+    switch (notification.type) {
+        case 'TRANSFER_RECEIVED':
+            toastType = 'success';
+            icon = '💰';
+            break;
+        case 'TRANSFER_SENT':
+            toastType = 'info';
+            icon = '📤';
+            break;
+        case 'DEPOSIT_RECEIVED':
+            toastType = 'success';
+            icon = '💳';
+            break;
+        case 'ACCOUNT_CREATED':
+            toastType = 'success';
+            icon = '🏦';
+            break;
+    }
+
+    // Show enhanced toast
+    showNotificationToast(icon, notification.title, notification.message, toastType);
+
+    // Auto-refresh dashboard data
+    if (['TRANSFER_RECEIVED', 'DEPOSIT_RECEIVED', 'BALANCE_UPDATED'].includes(notification.type)) {
+        setTimeout(() => loadDashboard(), 1000);
+    }
+}
+
+function showNotificationToast(icon, title, message, type) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.style.cssText = 'flex-direction:column;align-items:flex-start;gap:4px;min-width:350px;cursor:pointer;';
+    toast.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;font-weight:600;">
+            <span style="font-size:20px">${icon}</span> ${title}
+        </div>
+        <div style="font-size:13px;opacity:0.85;padding-left:28px;">${message}</div>
+    `;
+    toast.onclick = () => { toast.remove(); loadDashboard(); };
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 300); }, 6000);
 }

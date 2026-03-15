@@ -123,6 +123,8 @@ public class TransactionServiceImpl implements TransactionService {
                 .destinationAccountNumber(destAccount.getAccountNumber())
                 .initiatorEmail(sourceAccount.getUser().getEmail())
                 .initiatorName(sourceAccount.getUser().getFullName())
+                .receiverEmail(destAccount.getUser().getEmail())
+                .receiverName(destAccount.getUser().getFullName())
                 .timestamp(java.time.LocalDateTime.now())
                 .build());
 

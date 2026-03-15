@@ -73,13 +73,21 @@ public class EventConsumer {
         log.info("💸 Transfer notification → {} → {}, amount: {} {}, ref: {}",
                 event.getSourceAccountNumber(), event.getDestinationAccountNumber(),
                 event.getAmount(), event.getCurrency(), event.getReferenceNumber());
-        // Push real-time WebSocket notifications to both sender and receiver
+        // Push real-time WebSocket notifications to sender
         if (event.getInitiatorEmail() != null) {
             notificationService.notifyTransferSent(
                     event.getInitiatorEmail(),
                     event.getReferenceNumber(),
                     event.getAmount() + " " + event.getCurrency(),
                     event.getDestinationAccountNumber());
+        }
+        // Push real-time WebSocket notification to receiver
+        if (event.getReceiverEmail() != null) {
+            notificationService.notifyTransferReceived(
+                    event.getReceiverEmail(),
+                    event.getReferenceNumber(),
+                    event.getAmount() + " " + event.getCurrency(),
+                    event.getSourceAccountNumber());
         }
     }
 
