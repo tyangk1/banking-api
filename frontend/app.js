@@ -162,7 +162,12 @@ function renderDashboardAccounts() {
 function renderAccountCard(acc) {
     return `
     <div class="account-card">
-        <span class="acc-status status-${acc.status}">${acc.status}</span>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="acc-status status-${acc.status}">${acc.status}</span>
+            <button class="icon-btn" onclick="event.stopPropagation();showQrCode('${acc.id}','${acc.accountNumber}','${acc.ownerName || ''}')" title="Mã QR nhận tiền" style="color:var(--text-secondary);padding:4px">
+                <span class="material-icons-outlined" style="font-size:20px">qr_code_2</span>
+            </button>
+        </div>
         <div class="acc-type">${acc.accountType} ACCOUNT</div>
         <div class="acc-number">${formatAccountNumber(acc.accountNumber)}</div>
         <div class="acc-bottom">
@@ -1161,4 +1166,120 @@ function quickTransfer(accountNumber) {
         const destInput = document.getElementById('transfer-dest');
         if (destInput) destInput.value = accountNumber;
     }, 100);
+}
+
+// ============ QR CODE ============
+let qrScannerStream = null;
+let qrScanAnimFrame = null;
+
+function showQrCode(accountId, accountNumber, ownerName) {
+    const modal = document.getElementById('qr-modal');
+    const img = document.getElementById('qr-image');
+    const info = document.getElementById('qr-account-info');
+    const token = localStorage.getItem(TOKEN_KEY);
+
+    img.src = `${API_BASE}/v1/qr/generate/${accountId}?size=400&token=${token}`;
+    // Set auth header via fetch for the image
+    fetch(`${API_BASE}/v1/qr/generate/${accountId}?size=400`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    }).then(res => res.blob()).then(blob => {
+        img.src = URL.createObjectURL(blob);
+    }).catch(() => {
+        img.alt = 'Không thể tải QR';
+    });
+
+    info.innerHTML = `<strong>${ownerName}</strong><br><span style="font-size:18px;letter-spacing:2px;color:var(--accent-blue)">${accountNumber}</span>`;
+    modal.classList.remove('hidden');
+}
+
+function closeQrModal() {
+    document.getElementById('qr-modal').classList.add('hidden');
+}
+
+function openQrScanner() {
+    const modal = document.getElementById('qr-scanner-modal');
+    const video = document.getElementById('qr-video');
+    const status = document.getElementById('qr-scan-status');
+    status.textContent = 'Đang mở camera...';
+    modal.classList.remove('hidden');
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+            qrScannerStream = stream;
+            video.srcObject = stream;
+            video.play();
+            status.textContent = 'Đưa mã QR vào khung hình...';
+            requestAnimationFrame(scanQrFrame);
+        })
+        .catch(err => {
+            status.textContent = '❌ Không thể truy cập camera: ' + err.message;
+            // Fallback: manual input
+            setTimeout(() => {
+                const payload = prompt('Không thể mở camera.\nNhập nội dung QR code:');
+                if (payload) handleQrDecoded(payload);
+                closeQrScanner();
+            }, 1000);
+        });
+}
+
+function scanQrFrame() {
+    const video = document.getElementById('qr-video');
+    const canvas = document.getElementById('qr-canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        if (typeof jsQR !== 'undefined') {
+            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+            if (code && code.data) {
+                // QR detected!
+                document.getElementById('qr-scan-status').textContent = '✅ Đã quét thành công!';
+                handleQrDecoded(code.data);
+                setTimeout(() => closeQrScanner(), 500);
+                return;
+            }
+        }
+    }
+
+    qrScanAnimFrame = requestAnimationFrame(scanQrFrame);
+}
+
+function closeQrScanner() {
+    document.getElementById('qr-scanner-modal').classList.add('hidden');
+    if (qrScannerStream) {
+        qrScannerStream.getTracks().forEach(t => t.stop());
+        qrScannerStream = null;
+    }
+    if (qrScanAnimFrame) {
+        cancelAnimationFrame(qrScanAnimFrame);
+        qrScanAnimFrame = null;
+    }
+}
+
+function handleQrDecoded(payload) {
+    // Format: BANKQR|accountNumber|holderName|amount(optional)
+    const parts = payload.split('|');
+    if (parts.length < 3 || parts[0] !== 'BANKQR') {
+        showToast('❌ Mã QR không hợp lệ', 'error');
+        return;
+    }
+
+    const accountNumber = parts[1];
+    const holderName = parts[2];
+    const amount = parts.length > 3 ? parts[3] : '';
+
+    showToast(`✅ Đã nhận diện: ${holderName} (${accountNumber})`, 'success');
+
+    // Navigate to transfer page and fill in
+    showPage('transfer-page');
+    setTimeout(() => {
+        const destInput = document.getElementById('transfer-dest');
+        const amountInput = document.getElementById('transfer-amount');
+        if (destInput) destInput.value = accountNumber;
+        if (amountInput && amount) amountInput.value = amount;
+    }, 200);
 }

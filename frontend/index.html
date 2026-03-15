@@ -211,7 +211,14 @@
     <div id="transfer-page" class="page app-page">
         <aside class="sidebar"><!-- cloned via JS --></aside>
         <main class="main-content">
-            <header class="top-header"><h1>Chuyển tiền</h1></header>
+            <header class="top-header">
+                <h1>Chuyển tiền</h1>
+                <div class="header-actions">
+                    <button class="btn-sm btn-success" onclick="openQrScanner()" style="display:flex;align-items:center;gap:4px;padding:6px 14px">
+                        <span class="material-icons-outlined" style="font-size:18px">qr_code_scanner</span> Quét QR
+                    </button>
+                </div>
+            </header>
             <div class="transfer-container">
                 <div class="card transfer-form-card">
                     <h2><span class="material-icons-outlined">swap_horiz</span> Chuyển khoản</h2>
@@ -568,9 +575,42 @@
         </main>
     </div>
 
+
     <!-- ==================== NOTIFICATION TOAST ==================== -->
     <div class="toast-container" id="toast-container"></div>
 
+    <!-- ==================== QR CODE MODAL ==================== -->
+    <div id="qr-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeQrModal()">
+        <div class="modal-content" style="text-align:center;max-width:420px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h2 style="margin:0"><span class="material-icons-outlined">qr_code_2</span> Mã QR nhận tiền</h2>
+                <button class="icon-btn" onclick="closeQrModal()"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div id="qr-image-container" style="background:#fff;border-radius:12px;padding:20px;display:inline-block;margin-bottom:16px">
+                <img id="qr-image" src="" alt="QR Code" style="width:300px;height:300px">
+            </div>
+            <div id="qr-account-info" style="font-size:14px;color:var(--text-secondary)"></div>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Người gửi quét mã QR này để chuyển tiền cho bạn</p>
+        </div>
+    </div>
+
+    <!-- ==================== QR SCANNER MODAL ==================== -->
+    <div id="qr-scanner-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeQrScanner()">
+        <div class="modal-content" style="text-align:center;max-width:480px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h2 style="margin:0"><span class="material-icons-outlined">qr_code_scanner</span> Quét mã QR</h2>
+                <button class="icon-btn" onclick="closeQrScanner()"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div style="position:relative;border-radius:12px;overflow:hidden;background:#000">
+                <video id="qr-video" style="width:100%;display:block" autoplay playsinline></video>
+                <canvas id="qr-canvas" style="display:none"></canvas>
+                <div id="qr-scan-frame" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;border:3px solid var(--accent-blue);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
+            </div>
+            <p id="qr-scan-status" style="margin-top:12px;font-size:13px;color:var(--text-secondary)">Đưa mã QR vào khung hình...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
