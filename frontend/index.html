@@ -610,6 +610,35 @@
         </div>
     </div>
 
+    <!-- ==================== OTP VERIFICATION MODAL ==================== -->
+    <div id="otp-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeOtpModal()">
+        <div class="modal-content" style="text-align:center;max-width:400px">
+            <div style="width:60px;height:60px;border-radius:50%;background:var(--gradient-primary);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+                <span class="material-icons-outlined" style="font-size:28px;color:#fff">lock</span>
+            </div>
+            <h2 style="margin:0 0 8px">Xác thực OTP</h2>
+            <p id="otp-email-info" style="font-size:13px;color:var(--text-muted);margin-bottom:20px">
+                Mã xác thực đã được gửi đến email
+            </p>
+            <div id="otp-inputs" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,0)" onkeydown="onOtpKeydown(event,0)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,1)" onkeydown="onOtpKeydown(event,1)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,2)" onkeydown="onOtpKeydown(event,2)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,3)" onkeydown="onOtpKeydown(event,3)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,4)" onkeydown="onOtpKeydown(event,4)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,5)" onkeydown="onOtpKeydown(event,5)">
+            </div>
+            <div id="otp-error" class="error-message hidden" style="margin-bottom:12px"></div>
+            <div id="otp-timer" style="font-size:13px;color:var(--accent-orange);margin-bottom:16px">⏰ Hết hạn sau: 5:00</div>
+            <button id="otp-submit-btn" class="btn-primary" onclick="submitOtp()" style="width:100%">
+                <span class="material-icons-outlined">verified</span>
+                <span class="btn-text">Xác nhận</span>
+                <span class="btn-loader hidden"></span>
+            </button>
+            <button class="btn-sm" onclick="closeOtpModal()" style="margin-top:12px;color:var(--text-muted)">Huỷ giao dịch</button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
