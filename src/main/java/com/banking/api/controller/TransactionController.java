@@ -7,6 +7,7 @@ import com.banking.api.model.dto.response.TransactionResponse;
 import com.banking.api.model.enums.TransactionStatus;
 import com.banking.api.model.enums.TransactionType;
 import com.banking.api.security.CustomUserPrincipal;
+import com.banking.api.service.ReceiptService;
 import com.banking.api.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,7 +20,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,6 +39,7 @@ import java.time.LocalDate;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final ReceiptService receiptService;
 
     @PostMapping("/transfer")
     @Operation(summary = "Transfer funds", description = "Transfer money between two accounts")
@@ -74,8 +78,7 @@ public class TransactionController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search transactions",
-               description = "Advanced search with multiple filters: type, status, date range, amount range, keyword, category")
+    @Operation(summary = "Search transactions", description = "Advanced search with multiple filters: type, status, date range, amount range, keyword, category")
     public ResponseEntity<ApiResponse<Page<TransactionResponse>>> searchTransactions(
             @Parameter(description = "Account ID to filter by") @RequestParam(required = false) String accountId,
             @Parameter(description = "Transaction type: TRANSFER, DEPOSIT") @RequestParam(required = false) TransactionType type,
@@ -91,5 +94,28 @@ public class TransactionController {
         Page<TransactionResponse> results = transactionService.searchTransactions(
                 accountId, type, status, fromDate, toDate, minAmount, maxAmount, keyword, category, pageable);
         return ResponseEntity.ok(ApiResponse.success(results));
+    }
+
+    // ============ RECEIPT ENDPOINTS ============
+
+    @GetMapping("/receipt/{referenceNumber}")
+    @Operation(summary = "Get HTML receipt", description = "Get transaction receipt as HTML")
+    public ResponseEntity<String> getHtmlReceipt(@PathVariable String referenceNumber) {
+        TransactionResponse tx = transactionService.getByReferenceNumber(referenceNumber);
+        String html = receiptService.generateHtmlReceipt(tx);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(html);
+    }
+
+    @GetMapping("/receipt/{referenceNumber}/pdf")
+    @Operation(summary = "Download PDF receipt", description = "Download transaction receipt as PDF file")
+    public ResponseEntity<byte[]> getPdfReceipt(@PathVariable String referenceNumber) {
+        TransactionResponse tx = transactionService.getByReferenceNumber(referenceNumber);
+        byte[] pdf = receiptService.generatePdfReceipt(tx);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=receipt-" + referenceNumber + ".pdf")
+                .body(pdf);
     }
 }
