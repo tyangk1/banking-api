@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Premium Banking</title>
     <meta name="description" content="Hệ thống ngân hàng số cao cấp - Quản lý tài khoản, chuyển tiền, giao dịch">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- ==================== LOGIN PAGE ==================== -->
     <div id="login-page" class="page auth-page active">
@@ -39,7 +42,8 @@
                     <span class="btn-loader hidden"></span>
                 </button>
             </form>
-            <p class="auth-link">Chưa có tài khoản? <a href="#" onclick="showPage('register-page')">Tạo tài khoản</a></p>
+            <p class="auth-link">Chưa có tài khoản? <a href="#" onclick="showPage('register-page')">Tạo tài khoản</a>
+            </p>
             <div id="login-error" class="error-message hidden"></div>
         </div>
     </div>
@@ -79,7 +83,8 @@
                 </div>
                 <div class="input-group">
                     <span class="material-icons-outlined input-icon">lock</span>
-                    <input type="password" id="reg-password" placeholder="Mật khẩu (tối thiểu 8 ký tự)" required minlength="8">
+                    <input type="password" id="reg-password" placeholder="Mật khẩu (tối thiểu 8 ký tự)" required
+                        minlength="8">
                 </div>
                 <button type="submit" class="btn-primary" id="register-btn">
                     <span class="btn-text">Đăng Ký</span>
@@ -142,7 +147,12 @@
             <header class="top-header">
                 <h1 id="greeting">Xin chào, Nguyen Van A 👋</h1>
                 <div class="header-actions">
-                    <button class="icon-btn" onclick="loadDashboard()"><span class="material-icons-outlined">refresh</span></button>
+                    <div class="notification-bell" id="notification-bell" onclick="toggleNotificationPanel()">
+                        <span class="material-icons-outlined">notifications</span>
+                        <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+                    </div>
+                    <button class="icon-btn" onclick="loadDashboard()"><span
+                            class="material-icons-outlined">refresh</span></button>
                 </div>
             </header>
             <div class="stats-grid">
@@ -217,7 +227,8 @@
             <header class="top-header">
                 <h1>Chuyển tiền</h1>
                 <div class="header-actions">
-                    <button class="btn-sm btn-success" onclick="openQrScanner()" style="display:flex;align-items:center;gap:4px;padding:6px 14px">
+                    <button class="btn-sm btn-success" onclick="openQrScanner()"
+                        style="display:flex;align-items:center;gap:4px;padding:6px 14px">
                         <span class="material-icons-outlined" style="font-size:18px">qr_code_scanner</span> Quét QR
                     </button>
                 </div>
@@ -236,6 +247,11 @@
                                 <span class="material-icons-outlined input-icon">account_circle</span>
                                 <input type="text" id="dest-account" placeholder="Nhập số tài khoản" required>
                             </div>
+                            <div id="lookup-result" class="lookup-result" style="display:none;">
+                                <span class="material-icons-outlined"
+                                    style="font-size:16px;color:var(--accent-green);">verified</span>
+                                <span id="lookup-name"></span>
+                            </div>
                         </div>
                         <div class="input-group">
                             <label>Số tiền (VND)</label>
@@ -249,10 +265,13 @@
                             <textarea id="transfer-desc" placeholder="Nội dung..."></textarea>
                         </div>
                         <div class="transfer-summary" id="transfer-summary" style="display:none;">
+                            <div class="summary-row"><span>Người nhận:</span><strong id="sum-recipient">—</strong></div>
                             <div class="summary-row"><span>Số tiền:</span><strong id="sum-amount">0 VND</strong></div>
-                            <div class="summary-row"><span>Phí:</span><strong>0 VND</strong></div>
+                            <div class="summary-row"><span>Phí giao dịch:</span><strong id="sum-fee">0 VND</strong>
+                            </div>
                             <div class="summary-divider"></div>
-                            <div class="summary-row total"><span>Tổng cộng:</span><strong id="sum-total">0 VND</strong></div>
+                            <div class="summary-row total"><span>Tổng cộng:</span><strong id="sum-total">0 VND</strong>
+                            </div>
                         </div>
                         <button type="submit" class="btn-primary" id="transfer-btn">
                             <span class="material-icons-outlined">lock</span>
@@ -277,7 +296,9 @@
     <div id="deposit-page" class="page app-page">
         <aside class="sidebar"><!-- cloned via JS --></aside>
         <main class="main-content">
-            <header class="top-header"><h1>Nạp tiền</h1></header>
+            <header class="top-header">
+                <h1>Nạp tiền</h1>
+            </header>
             <div class="transfer-container">
                 <div class="card transfer-form-card" id="deposit-form-card">
                     <h2><span class="material-icons-outlined">savings</span> Nạp tiền vào tài khoản</h2>
@@ -323,14 +344,17 @@
             <header class="top-header">
                 <h1>Lịch sử giao dịch</h1>
                 <div class="header-actions">
-                    <button class="btn-primary" onclick="downloadPdfStatement()" id="btn-download-pdf" style="display:flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;">
+                    <button class="btn-primary" onclick="downloadPdfStatement()" id="btn-download-pdf"
+                        style="display:flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;">
                         <span class="material-icons-outlined" style="font-size:18px">picture_as_pdf</span>
                         <span class="btn-text">Xuất PDF</span>
                     </button>
                 </div>
             </header>
             <div class="history-filters card">
-                <select id="filter-account" onchange="loadHistory()"><option value="">Tất cả tài khoản</option></select>
+                <select id="filter-account" onchange="loadHistory()">
+                    <option value="">Tất cả tài khoản</option>
+                </select>
                 <input type="text" id="filter-ref" placeholder="Tìm mã tham chiếu..." onkeyup="loadHistory()">
             </div>
             <div class="card">
@@ -342,14 +366,37 @@
                             <th>Loại</th>
                             <th>Số tiền</th>
                             <th>Trạng thái</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody id="history-body">
-                        <tr><td colspan="5" class="empty-state">Chưa có giao dịch</td></tr>
+                        <tr>
+                            <td colspan="6" class="empty-state">Chưa có giao dịch</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </main>
+    </div>
+
+    <!-- ==================== RECEIPT MODAL ==================== -->
+    <div class="modal-overlay hidden" id="receipt-modal">
+        <div class="modal-card" style="max-width:520px;padding:0;overflow:hidden">
+            <div
+                style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border-color)">
+                <h3 style="margin:0;font-size:16px">Biên lai giao dịch</h3>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <button class="btn-sm btn-success" id="receipt-download-btn"
+                        style="font-size:12px;display:flex;align-items:center;gap:4px">
+                        <span class="material-icons-outlined" style="font-size:16px">download</span> PDF
+                    </button>
+                    <button class="icon-btn" onclick="closeModal('receipt-modal')">
+                        <span class="material-icons-outlined">close</span>
+                    </button>
+                </div>
+            </div>
+            <div id="receipt-content" style="max-height:70vh;overflow-y:auto"></div>
+        </div>
     </div>
 
     <!-- ==================== CREATE ACCOUNT MODAL ==================== -->
@@ -357,7 +404,8 @@
         <div class="modal-card">
             <div class="modal-header">
                 <h2>Tạo tài khoản mới</h2>
-                <button class="icon-btn" onclick="closeModal('create-account-modal')"><span class="material-icons-outlined">close</span></button>
+                <button class="icon-btn" onclick="closeModal('create-account-modal')"><span
+                        class="material-icons-outlined">close</span></button>
             </div>
             <form id="create-account-form">
                 <div class="input-group">
@@ -385,7 +433,8 @@
             <header class="top-header">
                 <h1>📊 Phân tích chi tiêu</h1>
                 <div class="header-actions">
-                    <button class="icon-btn" onclick="loadAnalytics()" title="Tải lại"><span class="material-icons-outlined">refresh</span></button>
+                    <button class="icon-btn" onclick="loadAnalytics()" title="Tải lại"><span
+                            class="material-icons-outlined">refresh</span></button>
                 </div>
             </header>
 
@@ -393,11 +442,13 @@
             <div class="stats-grid" id="analytics-stats">
                 <div class="stat-card gradient-green">
                     <div class="stat-icon"><span class="material-icons-outlined">trending_up</span></div>
-                    <div><span class="stat-label">Thu nhập</span><span class="stat-value" id="stat-income">0</span></div>
+                    <div><span class="stat-label">Thu nhập</span><span class="stat-value" id="stat-income">0</span>
+                    </div>
                 </div>
                 <div class="stat-card gradient-orange">
                     <div class="stat-icon"><span class="material-icons-outlined">trending_down</span></div>
-                    <div><span class="stat-label">Chi tiêu</span><span class="stat-value" id="stat-expense">0</span></div>
+                    <div><span class="stat-label">Chi tiêu</span><span class="stat-value" id="stat-expense">0</span>
+                    </div>
                 </div>
                 <div class="stat-card gradient-blue">
                     <div class="stat-icon"><span class="material-icons-outlined">account_balance</span></div>
@@ -412,13 +463,17 @@
             <!-- Charts Grid -->
             <div class="content-grid" style="margin-bottom:20px;">
                 <div class="card">
-                    <div class="card-header"><h2>Thu nhập vs Chi tiêu</h2></div>
+                    <div class="card-header">
+                        <h2>Thu nhập vs Chi tiêu</h2>
+                    </div>
                     <div style="position:relative;height:300px;">
                         <canvas id="chart-income-expense"></canvas>
                     </div>
                 </div>
                 <div class="card">
-                    <div class="card-header"><h2>Phân loại chi tiêu</h2></div>
+                    <div class="card-header">
+                        <h2>Phân loại chi tiêu</h2>
+                    </div>
                     <div style="position:relative;height:300px;">
                         <canvas id="chart-category"></canvas>
                     </div>
@@ -427,7 +482,9 @@
 
             <!-- Top Beneficiaries -->
             <div class="card">
-                <div class="card-header"><h2>Top người nhận chuyển khoản</h2></div>
+                <div class="card-header">
+                    <h2>Top người nhận chuyển khoản</h2>
+                </div>
                 <div id="top-beneficiaries" class="tx-list">
                     <p class="empty-state">Chưa có dữ liệu</p>
                 </div>
@@ -442,14 +499,17 @@
             <header class="top-header">
                 <h1>🔄 Lịch chuyển tiền tự động</h1>
                 <div class="header-actions">
-                    <button class="icon-btn" onclick="loadRecurring()" title="Tải lại"><span class="material-icons-outlined">refresh</span></button>
+                    <button class="icon-btn" onclick="loadRecurring()" title="Tải lại"><span
+                            class="material-icons-outlined">refresh</span></button>
                 </div>
             </header>
 
             <div class="content-grid">
                 <!-- Create Form -->
                 <div class="card">
-                    <div class="card-header"><h2><span class="material-icons-outlined">add_circle</span> Tạo lịch mới</h2></div>
+                    <div class="card-header">
+                        <h2><span class="material-icons-outlined">add_circle</span> Tạo lịch mới</h2>
+                    </div>
                     <form id="recurring-form" onsubmit="createRecurring(event)">
                         <div class="input-group">
                             <label>Tài khoản nguồn</label>
@@ -480,9 +540,12 @@
                         <div class="input-group" id="rc-dow-group" style="display:none">
                             <label>Thứ trong tuần</label>
                             <select id="rc-dow">
-                                <option value="1">Thứ 2</option><option value="2">Thứ 3</option>
-                                <option value="3">Thứ 4</option><option value="4">Thứ 5</option>
-                                <option value="5">Thứ 6</option><option value="6">Thứ 7</option>
+                                <option value="1">Thứ 2</option>
+                                <option value="2">Thứ 3</option>
+                                <option value="3">Thứ 4</option>
+                                <option value="4">Thứ 5</option>
+                                <option value="5">Thứ 6</option>
+                                <option value="6">Thứ 7</option>
                                 <option value="7">Chủ nhật</option>
                             </select>
                         </div>
@@ -505,7 +568,9 @@
 
                 <!-- Existing Schedules -->
                 <div class="card">
-                    <div class="card-header"><h2><span class="material-icons-outlined">list_alt</span> Lịch hiện tại</h2></div>
+                    <div class="card-header">
+                        <h2><span class="material-icons-outlined">list_alt</span> Lịch hiện tại</h2>
+                    </div>
                     <div id="recurring-list" class="tx-list">
                         <p class="empty-state">Chưa có lịch chuyển tiền</p>
                     </div>
@@ -523,16 +588,20 @@
                 <div class="header-actions">
                     <div class="input-with-icon" style="width:240px">
                         <span class="material-icons-outlined input-icon">search</span>
-                        <input type="text" id="ben-search" placeholder="Tìm theo tên, STK..." oninput="searchBeneficiaries()">
+                        <input type="text" id="ben-search" placeholder="Tìm theo tên, STK..."
+                            oninput="searchBeneficiaries()">
                     </div>
-                    <button class="icon-btn" onclick="loadBeneficiaries()" title="Tải lại"><span class="material-icons-outlined">refresh</span></button>
+                    <button class="icon-btn" onclick="loadBeneficiaries()" title="Tải lại"><span
+                            class="material-icons-outlined">refresh</span></button>
                 </div>
             </header>
 
             <div class="content-grid">
                 <!-- Add Beneficiary Form -->
                 <div class="card">
-                    <div class="card-header"><h2><span class="material-icons-outlined">person_add</span> Thêm người nhận mới</h2></div>
+                    <div class="card-header">
+                        <h2><span class="material-icons-outlined">person_add</span> Thêm người nhận mới</h2>
+                    </div>
                     <form id="ben-form" onsubmit="createBeneficiary(event)">
                         <div class="input-group">
                             <label>Biệt danh</label>
@@ -566,7 +635,10 @@
 
                 <!-- Beneficiary List -->
                 <div class="card" style="grid-column: span 1">
-                    <div class="card-header"><h2><span class="material-icons-outlined">group</span> Danh sách (<span id="ben-count">0</span>)</h2></div>
+                    <div class="card-header">
+                        <h2><span class="material-icons-outlined">group</span> Danh sách (<span id="ben-count">0</span>)
+                        </h2>
+                    </div>
                     <!-- Favorites -->
                     <div id="ben-favorites" style="margin-bottom:16px"></div>
                     <!-- All -->
@@ -590,13 +662,15 @@
                     <button class="chat-quick-btn" onclick="sendQuickChat('Phân tích chi tiêu tháng này cho tôi')">
                         <span class="material-icons-outlined">analytics</span> Phân tích chi tiêu
                     </button>
-                    <button class="chat-quick-btn" onclick="sendQuickChat('Cho tôi lời khuyên tiết kiệm dựa trên chi tiêu hiện tại')">
+                    <button class="chat-quick-btn"
+                        onclick="sendQuickChat('Cho tôi lời khuyên tiết kiệm dựa trên chi tiêu hiện tại')">
                         <span class="material-icons-outlined">savings</span> Gợi ý tiết kiệm
                     </button>
                     <button class="chat-quick-btn" onclick="sendQuickChat('Tư vấn đầu tư cơ bản cho người mới')">
                         <span class="material-icons-outlined">trending_up</span> Tư vấn đầu tư
                     </button>
-                    <button class="chat-quick-btn" onclick="sendQuickChat('Có giao dịch nào bất thường trong tháng này không?')">
+                    <button class="chat-quick-btn"
+                        onclick="sendQuickChat('Có giao dịch nào bất thường trong tháng này không?')">
                         <span class="material-icons-outlined">warning</span> Phát hiện bất thường
                     </button>
                 </div>
@@ -604,7 +678,8 @@
                     <div class="chat-msg bot">
                         <div class="chat-avatar"><span class="material-icons-outlined">smart_toy</span></div>
                         <div class="chat-bubble">
-                            Xin chào! 👋 Tôi là <strong>AI Financial Advisor</strong> — trợ lý tài chính thông minh của bạn.<br><br>
+                            Xin chào! 👋 Tôi là <strong>AI Financial Advisor</strong> — trợ lý tài chính thông minh của
+                            bạn.<br><br>
                             Tôi có thể giúp bạn:<br>
                             📊 Phân tích chi tiêu &nbsp;|&nbsp; 💡 Gợi ý tiết kiệm<br>
                             📈 Tư vấn đầu tư &nbsp;|&nbsp; 🔍 Phát hiện bất thường<br><br>
@@ -613,7 +688,8 @@
                     </div>
                 </div>
                 <form class="chat-input-form" id="chat-form" onsubmit="handleChatSubmit(event)">
-                    <input type="text" id="chat-input" placeholder="Hỏi về tài chính của bạn..." autocomplete="off" required>
+                    <input type="text" id="chat-input" placeholder="Hỏi về tài chính của bạn..." autocomplete="off"
+                        required>
                     <button type="submit" class="chat-send-btn" id="chat-send-btn">
                         <span class="material-icons-outlined">send</span>
                     </button>
@@ -630,13 +706,16 @@
         <div class="modal-content" style="text-align:center;max-width:420px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                 <h2 style="margin:0"><span class="material-icons-outlined">qr_code_2</span> Mã QR nhận tiền</h2>
-                <button class="icon-btn" onclick="closeQrModal()"><span class="material-icons-outlined">close</span></button>
+                <button class="icon-btn" onclick="closeQrModal()"><span
+                        class="material-icons-outlined">close</span></button>
             </div>
-            <div id="qr-image-container" style="background:#fff;border-radius:12px;padding:20px;display:inline-block;margin-bottom:16px">
+            <div id="qr-image-container"
+                style="background:#fff;border-radius:12px;padding:20px;display:inline-block;margin-bottom:16px">
                 <img id="qr-image" src="" alt="QR Code" style="width:300px;height:300px">
             </div>
             <div id="qr-account-info" style="font-size:14px;color:var(--text-secondary)"></div>
-            <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Người gửi quét mã QR này để chuyển tiền cho bạn</p>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Người gửi quét mã QR này để chuyển tiền
+                cho bạn</p>
         </div>
     </div>
 
@@ -645,43 +724,68 @@
         <div class="modal-content" style="text-align:center;max-width:480px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                 <h2 style="margin:0"><span class="material-icons-outlined">qr_code_scanner</span> Quét mã QR</h2>
-                <button class="icon-btn" onclick="closeQrScanner()"><span class="material-icons-outlined">close</span></button>
+                <button class="icon-btn" onclick="closeQrScanner()"><span
+                        class="material-icons-outlined">close</span></button>
             </div>
             <div style="position:relative;border-radius:12px;overflow:hidden;background:#000">
                 <video id="qr-video" style="width:100%;display:block" autoplay playsinline></video>
                 <canvas id="qr-canvas" style="display:none"></canvas>
-                <div id="qr-scan-frame" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;border:3px solid var(--accent-blue);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
+                <div id="qr-scan-frame"
+                    style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;border:3px solid var(--accent-blue);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)">
+                </div>
             </div>
-            <p id="qr-scan-status" style="margin-top:12px;font-size:13px;color:var(--text-secondary)">Đưa mã QR vào khung hình...</p>
+            <p id="qr-scan-status" style="margin-top:12px;font-size:13px;color:var(--text-secondary)">Đưa mã QR vào
+                khung hình...</p>
         </div>
     </div>
 
     <!-- ==================== OTP VERIFICATION MODAL ==================== -->
     <div id="otp-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeOtpModal()">
         <div class="modal-content" style="text-align:center;max-width:400px">
-            <div style="width:60px;height:60px;border-radius:50%;background:var(--gradient-primary);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+            <div
+                style="width:60px;height:60px;border-radius:50%;background:var(--gradient-primary);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
                 <span class="material-icons-outlined" style="font-size:28px;color:#fff">lock</span>
             </div>
             <h2 style="margin:0 0 8px">Xác thực OTP</h2>
             <p id="otp-email-info" style="font-size:13px;color:var(--text-muted);margin-bottom:20px">
                 Mã xác thực đã được gửi đến email
             </p>
-            <div id="otp-inputs" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
-                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,0)" onkeydown="onOtpKeydown(event,0)">
-                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,1)" onkeydown="onOtpKeydown(event,1)">
-                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,2)" onkeydown="onOtpKeydown(event,2)">
-                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,3)" onkeydown="onOtpKeydown(event,3)">
-                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,4)" onkeydown="onOtpKeydown(event,4)">
-                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,5)" onkeydown="onOtpKeydown(event,5)">
+            <div id="otp-inputs">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,0)"
+                    onkeydown="onOtpKeydown(event,0)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,1)"
+                    onkeydown="onOtpKeydown(event,1)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,2)"
+                    onkeydown="onOtpKeydown(event,2)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,3)"
+                    onkeydown="onOtpKeydown(event,3)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,4)"
+                    onkeydown="onOtpKeydown(event,4)">
+                <input type="text" maxlength="1" class="otp-digit" oninput="onOtpInput(this,5)"
+                    onkeydown="onOtpKeydown(event,5)">
             </div>
             <div id="otp-error" class="error-message hidden" style="margin-bottom:12px"></div>
-            <div id="otp-timer" style="font-size:13px;color:var(--accent-orange);margin-bottom:16px">⏰ Hết hạn sau: 5:00</div>
+            <div id="otp-timer" style="font-size:13px;color:var(--accent-orange);margin-bottom:16px">⏰ Hết hạn sau: 5:00
+            </div>
             <button id="otp-submit-btn" class="btn-primary" onclick="submitOtp()" style="width:100%">
                 <span class="material-icons-outlined">verified</span>
                 <span class="btn-text">Xác nhận</span>
                 <span class="btn-loader hidden"></span>
             </button>
-            <button class="btn-sm" onclick="closeOtpModal()" style="margin-top:12px;color:var(--text-muted)">Huỷ giao dịch</button>
+            <button class="btn-sm" onclick="closeOtpModal()" style="margin-top:12px;color:var(--text-muted)">Huỷ giao
+                dịch</button>
+        </div>
+    </div>
+
+    <!-- ============ NOTIFICATION PANEL ============ -->
+    <div class="notification-overlay" id="notification-overlay" onclick="toggleNotificationPanel()"></div>
+    <div class="notification-panel" id="notification-panel">
+        <div class="notif-header">
+            <h3>Thông báo</h3>
+            <button class="btn-link" onclick="markAllNotificationsRead()">Đánh dấu đã đọc</button>
+        </div>
+        <div class="notif-list" id="notif-list">
+            <div class="notif-empty">Không có thông báo mới</div>
         </div>
     </div>
 
@@ -691,4 +795,5 @@
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <script src="app.js"></script>
 </body>
+
 </html>
