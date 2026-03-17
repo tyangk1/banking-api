@@ -125,6 +125,7 @@ async function loadDashboard() {
         renderDashboardStats();
         renderDashboardAccounts();
         loadAccountTransactions();
+        loadUnreadCount();
     } catch (err) {
         console.error('Failed to load dashboard:', err);
     }
@@ -265,19 +266,90 @@ async function handleCreateAccount(e) {
 }
 
 // ============ TRANSFER ============
+let lookupTimeout = null;
+let currentRecipientName = null;
+
 function initTransferForm() {
     const amountInput = document.getElementById('transfer-amount');
-    amountInput.addEventListener('input', () => {
-        const amount = parseFloat(amountInput.value) || 0;
-        const summary = document.getElementById('transfer-summary');
-        if (amount > 0) {
-            summary.style.display = 'block';
-            document.getElementById('sum-amount').textContent = formatCurrency(amount);
-            document.getElementById('sum-total').textContent = formatCurrency(amount);
-        } else {
-            summary.style.display = 'none';
+    const destInput = document.getElementById('dest-account');
+
+    // Auto-lookup recipient when typing destination account number
+    destInput.addEventListener('input', () => {
+        const number = destInput.value.trim();
+        const lookupEl = document.getElementById('lookup-result');
+        const nameEl = document.getElementById('lookup-name');
+        currentRecipientName = null;
+
+        clearTimeout(lookupTimeout);
+        if (number.length < 8) {
+            lookupEl.style.display = 'none';
+            updateTransferSummary();
+            return;
         }
+
+        lookupTimeout = setTimeout(async () => {
+            try {
+                const token = localStorage.getItem(TOKEN_KEY);
+                const res = await fetch(`${API_BASE}/v1/accounts/lookup?number=${number}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    lookupEl.className = 'lookup-result';
+                    lookupEl.querySelector('.material-icons-outlined').textContent = 'verified';
+                    nameEl.textContent = data.data.ownerName;
+                    currentRecipientName = data.data.ownerName;
+                    lookupEl.style.display = 'flex';
+                } else {
+                    lookupEl.className = 'lookup-result error';
+                    lookupEl.querySelector('.material-icons-outlined').textContent = 'error_outline';
+                    nameEl.textContent = 'Không tìm thấy tài khoản';
+                    currentRecipientName = null;
+                    lookupEl.style.display = 'flex';
+                }
+            } catch {
+                lookupEl.style.display = 'none';
+                currentRecipientName = null;
+            }
+            updateTransferSummary();
+        }, 500);
     });
+
+    // Fee calculation when amount changes
+    amountInput.addEventListener('input', () => {
+        updateTransferSummary();
+    });
+}
+
+async function updateTransferSummary() {
+    const amount = parseFloat(document.getElementById('transfer-amount').value) || 0;
+    const summary = document.getElementById('transfer-summary');
+
+    if (amount > 0) {
+        summary.style.display = 'block';
+        document.getElementById('sum-amount').textContent = formatCurrency(amount);
+        document.getElementById('sum-recipient').textContent = currentRecipientName || '—';
+
+        // Fetch fee from API
+        try {
+            const token = localStorage.getItem(TOKEN_KEY);
+            const res = await fetch(`${API_BASE}/v1/accounts/fee-calculate?amount=${amount}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                const fee = data.data.fee;
+                const total = data.data.total;
+                document.getElementById('sum-fee').textContent = formatCurrency(fee);
+                document.getElementById('sum-total').textContent = formatCurrency(total);
+            }
+        } catch {
+            document.getElementById('sum-fee').textContent = '—';
+            document.getElementById('sum-total').textContent = formatCurrency(amount);
+        }
+    } else {
+        summary.style.display = 'none';
+    }
 }
 
 function populateSourceAccounts() {
@@ -572,6 +644,9 @@ function renderHistoryTable(txList) {
             ${sign}${formatCurrency(tx.amount)}
         </td>
         <td><span class="tx-status-badge tx-status-${tx.status}">${tx.status}</span></td>
+        <td><button class="btn-sm" onclick="viewReceipt('${tx.referenceNumber}')" style="font-size:11px;padding:4px 10px;display:flex;align-items:center;gap:3px">
+            <span class="material-icons-outlined" style="font-size:14px">receipt_long</span> Biên lai
+        </button></td>
     </tr>`;
     }).join('');
 }
@@ -664,7 +739,7 @@ async function loadRecurring() {
 
         const freqLabels = { DAILY: 'Hàng ngày', WEEKLY: 'Hàng tuần', MONTHLY: 'Hàng tháng' };
         const statusColors = { ACTIVE: '#22c55e', PAUSED: '#f59e0b', COMPLETED: '#6366f1', CANCELLED: '#ef4444' };
-        const dowLabels = { 1:'T2', 2:'T3', 3:'T4', 4:'T5', 5:'T6', 6:'T7', 7:'CN' };
+        const dowLabels = { 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 7: 'CN' };
 
         container.innerHTML = list.map(r => {
             let scheduleText = freqLabels[r.frequency];
@@ -676,9 +751,9 @@ async function loadRecurring() {
                 ? `<button class="btn-sm btn-warning" onclick="pauseRecurring('${r.id}')">⏸ Tạm dừng</button>
                    <button class="btn-sm btn-danger" onclick="cancelRecurring('${r.id}')">✕ Huỷ</button>`
                 : r.status === 'PAUSED'
-                ? `<button class="btn-sm btn-success" onclick="resumeRecurring('${r.id}')">▶ Tiếp tục</button>
+                    ? `<button class="btn-sm btn-success" onclick="resumeRecurring('${r.id}')">▶ Tiếp tục</button>
                    <button class="btn-sm btn-danger" onclick="cancelRecurring('${r.id}')">✕ Huỷ</button>`
-                : '';
+                    : '';
 
             return `
             <div class="tx-item" style="flex-direction:column;align-items:stretch;gap:10px;">
@@ -1080,16 +1155,16 @@ function connectWebSocket() {
         stompClient = Stomp.over(socket);
         stompClient.debug = null; // Suppress STOMP debug logs
 
-        stompClient.connect({}, function(frame) {
+        stompClient.connect({}, function (frame) {
             console.log('🔌 WebSocket connected:', frame);
 
             // Subscribe to broadcast notifications
-            stompClient.subscribe('/topic/notifications', function(message) {
+            stompClient.subscribe('/topic/notifications', function (message) {
                 handleWsNotification(JSON.parse(message.body));
             });
 
             console.log('✅ Subscribed to /topic/notifications');
-        }, function(error) {
+        }, function (error) {
             console.warn('WebSocket connection error:', error);
             // Reconnect after 5 seconds
             setTimeout(connectWebSocket, 5000);
@@ -1502,4 +1577,162 @@ function parseMarkdown(text) {
         .replace(/^[-•]\s+(.+)$/gm, '&nbsp;&nbsp;• $1')
         .replace(/^\d+\.\s+(.+)$/gm, (m, p1, offset, str) => `&nbsp;&nbsp;${m.match(/^\d+/)[0]}. ${p1}`)
         .replace(/\n/g, '<br>');
+}
+
+// ============ NOTIFICATION CENTER ============
+let notifPanelOpen = false;
+
+function toggleNotificationPanel() {
+    notifPanelOpen = !notifPanelOpen;
+    document.getElementById('notification-panel').classList.toggle('show', notifPanelOpen);
+    document.getElementById('notification-overlay').classList.toggle('show', notifPanelOpen);
+    if (notifPanelOpen) loadNotifications();
+}
+
+async function loadNotifications() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return;
+    try {
+        const res = await fetch(`${API_BASE}/v1/notifications?page=0&size=20`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            renderNotifications(data.data.content || []);
+        }
+    } catch { /* silent */ }
+}
+
+function renderNotifications(notifications) {
+    const list = document.getElementById('notif-list');
+    if (!notifications.length) {
+        list.innerHTML = '<div class="notif-empty"><span class="material-icons-outlined" style="font-size:40px;display:block;margin-bottom:8px;opacity:.4">notifications_none</span>Không có thông báo</div>';
+        return;
+    }
+    list.innerHTML = notifications.map(n => {
+        const iconInfo = getNotifIcon(n.type);
+        const timeAgo = formatTimeAgo(n.createdAt);
+        return `<div class="notif-item ${n.read ? '' : 'unread'}" onclick="markNotificationRead('${n.id}')">
+            <div class="notif-icon ${iconInfo.cls}"><span class="material-icons-outlined">${iconInfo.icon}</span></div>
+            <div class="notif-content">
+                <div class="notif-title">${n.title}</div>
+                <div class="notif-msg">${n.message}</div>
+                <div class="notif-time">${timeAgo}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function getNotifIcon(type) {
+    const map = {
+        TRANSFER_SENT: { icon: 'arrow_upward', cls: 'transfer-sent' },
+        TRANSFER_RECEIVED: { icon: 'arrow_downward', cls: 'transfer-received' },
+        DEPOSIT: { icon: 'savings', cls: 'deposit' },
+        LOGIN: { icon: 'login', cls: 'system' },
+        SECURITY_ALERT: { icon: 'shield', cls: 'system' },
+        SYSTEM: { icon: 'info', cls: 'system' }
+    };
+    return map[type] || { icon: 'notifications', cls: 'system' };
+}
+
+async function loadUnreadCount() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return;
+    try {
+        const res = await fetch(`${API_BASE}/v1/notifications/unread-count`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            const badge = document.getElementById('notif-badge');
+            const count = data.data.unreadCount;
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch { /* silent */ }
+}
+
+async function markAllNotificationsRead() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    try {
+        await fetch(`${API_BASE}/v1/notifications/mark-all-read`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadNotifications();
+        loadUnreadCount();
+    } catch { /* silent */ }
+}
+
+async function markNotificationRead(id) {
+    const token = localStorage.getItem(TOKEN_KEY);
+    try {
+        await fetch(`${API_BASE}/v1/notifications/${id}/read`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadNotifications();
+        loadUnreadCount();
+    } catch { /* silent */ }
+}
+
+function formatTimeAgo(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    if (diff < 60) return 'Vừa xong';
+    if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
+    return `${Math.floor(diff / 86400)} ngày trước`;
+}
+
+// Poll unread count every 30s
+setInterval(() => { if (localStorage.getItem(TOKEN_KEY)) loadUnreadCount(); }, 30000);
+
+// ============ RECEIPT ============
+async function viewReceipt(referenceNumber) {
+    const token = localStorage.getItem(TOKEN_KEY);
+    try {
+        const res = await fetch(`${API_BASE}/v1/transactions/receipt/${referenceNumber}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const html = await res.text();
+            document.getElementById('receipt-content').innerHTML = html;
+            document.getElementById('receipt-download-btn').onclick = () => downloadPdfReceipt(referenceNumber);
+            document.getElementById('receipt-modal').classList.remove('hidden');
+        } else {
+            showToast('Không thể tải biên lai', 'error');
+        }
+    } catch { showToast('Lỗi kết nối', 'error'); }
+}
+
+async function downloadPdfReceipt(referenceNumber) {
+    const token = localStorage.getItem(TOKEN_KEY);
+    try {
+        const res = await fetch(`${API_BASE}/v1/transactions/receipt/${referenceNumber}/pdf`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `receipt-${referenceNumber}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 1000);
+            showToast('Đã tải biên lai PDF', 'success');
+        } else {
+            showToast('Không thể tải biên lai', 'error');
+        }
+    } catch (err) { showToast('Lỗi tải PDF', 'error'); }
 }
