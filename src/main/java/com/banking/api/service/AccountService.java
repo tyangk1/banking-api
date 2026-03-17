@@ -1,6 +1,7 @@
 package com.banking.api.service;
 
 import com.banking.api.model.dto.request.CreateAccountRequest;
+import com.banking.api.model.dto.response.AccountLookupResponse;
 import com.banking.api.model.dto.response.AccountResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,4 +21,6 @@ public interface AccountService {
     Page<AccountResponse> getAccountsByUserId(String userId, Pageable pageable);
 
     AccountResponse closeAccount(String accountId, String userId);
+
+    AccountLookupResponse lookupAccount(String accountNumber);
 }
